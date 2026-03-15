@@ -1,0 +1,50 @@
+# Hunter SE 경로 추종 TQC 하이퍼파라미터
+# 원본 출처: drl_agent/config/hyperparameters_tqc.yaml
+
+algorithm: tqc
+experiment_name: hunter_path_tracking_tqc
+
+# 재현성
+seed: 0
+
+# 학습 스케줄
+total_timesteps: 1_000_000
+warmup_steps: 25_000        # 랜덤 행동으로 버퍼 채우기
+eval_interval: 5_000        # 평가 주기
+eval_episodes: 10           # 평가 에피소드 수
+max_episode_steps: 2000     # 에피소드당 최대 스텝 (200s / 0.1s)
+
+# 리플레이 버퍼
+buffer_size: 1_000_000
+batch_size: 256
+prioritized: false          # LAP PER 사용 여부 (true/false)
+alpha: 0.4                  # PER 우선순위 지수 (prioritized=true 시)
+min_priority: 1.0
+
+# 학습률
+actor_lr: 3.0e-4
+critic_lr: 3.0e-4
+ent_coef_lr: 3.0e-4
+
+# TQC 설정
+n_quantiles: 25             # 분포 분위수 개수
+n_critics: 5                # 크리틱 네트워크 수
+top_quantiles_to_drop_per_net: 2  # 상위 분위수 제거 수 (안정성)
+discount: 0.99
+tau: 0.005                  # Polyak 평균 계수
+target_update_interval: 1
+
+# 엔트로피 (자동 조정)
+ent_coef: "auto_1.0"        # "auto_<초기값>" 또는 고정값 (예: 0.1)
+target_entropy: -2.0        # 기본값: -action_dim
+
+# 네트워크 구조
+actor_hdim: 256
+critic_hdim: 256
+actor_activ: relu
+critic_activ: elu
+
+# 체크포인팅
+reset_weight: 0.9
+steps_before_checkpointing: 40_000
+max_eps_when_checkpointing: 50

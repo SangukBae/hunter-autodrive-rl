@@ -1,0 +1,16 @@
+[package]
+version = "0.1.0"
+title = "Isaac Lab Autodrive"
+description = "Hunter SE 자율주행 핵심 모듈 — 에셋, 지형, 유틸리티"
+readme = "docs/README.md"
+category = "robotics"
+keywords = ["robotics", "autonomous-driving", "hunter", "isaaclab"]
+
+[dependencies]
+"isaaclab" = {}
+
+[core]
+reloadable = false
+
+[[python.module]]
+name = "isaaclab_autodrive"

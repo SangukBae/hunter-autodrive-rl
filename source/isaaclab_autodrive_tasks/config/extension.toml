@@ -1,0 +1,17 @@
+[package]
+version = "0.1.0"
+title = "Isaac Lab Autodrive Tasks"
+description = "Hunter SE 자율주행 RL 환경 태스크 모음"
+readme = "docs/README.md"
+category = "robotics"
+keywords = ["robotics", "rl", "autonomous-driving", "hunter", "isaaclab"]
+
+[dependencies]
+"isaaclab" = {}
+"isaaclab_autodrive" = {}
+
+[core]
+reloadable = false
+
+[[python.module]]
+name = "isaaclab_autodrive_tasks"
