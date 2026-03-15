@@ -246,11 +246,11 @@ total_reward = exp(-crosstrack_error/5.0) × exp(-heading_error/π) × (0.1 × v
 ## 개발 단계
 
 ### Phase 1 — 기반 구축
-- [ ] `isaaclab_autodrive` 패키지 생성 및 `pip install -e` 등록
-- [ ] `hunter.py` 이식 (USD 경로: `hunter_aim4.usd`)
-- [ ] `cubic_spline.py`, `lqr_controller.py`, `angle.py` 이식
-- [ ] 트랙 CSV 복사 (`waypoints/`)
-- [ ] 기본 임포트 테스트
+- [x] `isaaclab_autodrive` 패키지 생성 및 `pip install -e` 등록
+- [x] `hunter.py` 이식 (USD 경로: `hunter_aim4.usd`)
+- [x] `cubic_spline.py`, `lqr_controller.py`, `angle.py` 이식
+- [x] 트랙 CSV 복사 (`waypoints/`) — Austin 4145개 경로점 확인
+- [x] 기본 임포트 테스트 통과
 
 ### Phase 2 — 기본 태스크 구현
 - [ ] `path_tracking_env.py` 구현 (`hunter_hybrid_env.py` 리팩토링)
