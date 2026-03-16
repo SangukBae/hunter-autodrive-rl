@@ -52,3 +52,5 @@ Thumbs.db
 ros2/build/
 ros2/install/
 ros2/log/
+*.usd
+outputs/

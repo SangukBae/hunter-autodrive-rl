@@ -2,7 +2,7 @@
 # All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 
-from .buffer import LAP
-from .logger import Logger
+from .td7_agent import TD7Agent
+from .td7_trainer import TD7Trainer
 
-__all__ = ["LAP", "Logger"]
+__all__ = ["TD7Agent", "TD7Trainer"]

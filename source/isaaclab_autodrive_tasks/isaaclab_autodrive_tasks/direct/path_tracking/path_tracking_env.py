@@ -20,6 +20,7 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation
 from isaaclab.envs import DirectRLEnv
 from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
+from isaaclab.sim.utils import add_reference_to_stage
 from isaaclab.utils.math import euler_xyz_from_quat
 
 from isaaclab_autodrive.utils.cubic_spline import calc_spline_course
@@ -112,8 +113,11 @@ class HunterPathTrackingEnv(DirectRLEnv):
             coordinates_tensor.unsqueeze(0) + translations_tensor.unsqueeze(1)
         )
 
-        # 지면 평면 스폰
-        spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
+        # 지형 스폰: terrain_usd가 있으면 USD 지형, 없으면 기본 평지
+        if self.cfg.terrain_usd is not None:
+            add_reference_to_stage(usd_path=self.cfg.terrain_usd, path="/World/Terrain")
+        else:
+            spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
 
         # 환경 복제 및 충돌 필터링
         self.scene.clone_environments(copy_from_source=False)
@@ -123,6 +127,52 @@ class HunterPathTrackingEnv(DirectRLEnv):
         # 조명
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
+
+        # 트랙 경로 시각화
+        self._draw_track_visualization()
+
+    def _draw_track_visualization(self) -> None:
+        """트랙 경로를 USD BasisCurves 프림으로 시각화합니다.
+
+        env_spacing 기준으로 최대 8개 환경에 노란색 중심선을 그립니다.
+        train/play/benchmark 등 모든 실행 파일에서 동일하게 적용됩니다.
+        """
+        try:
+            import omni.usd
+            from pxr import Gf, Sdf, UsdGeom, Vt
+        except ImportError:
+            return
+
+        stage = omni.usd.get_context().get_stage()
+        max_vis = min(self.num_envs, 8)  # 최대 8개 환경 시각화
+
+        for env_idx in range(max_vis):
+            tx = self.translated_coordinates[env_idx, :, 0].cpu().numpy()
+            ty = self.translated_coordinates[env_idx, :, 1].cpu().numpy()
+            n = len(tx)
+
+            prim_path = f"/World/TrackVis/env_{env_idx}"
+            curves = UsdGeom.BasisCurves.Define(stage, prim_path)
+            curves.GetTypeAttr().Set("linear")
+
+            points = Vt.Vec3fArray(
+                [Gf.Vec3f(float(tx[i]), float(ty[i]), 0.05) for i in range(n)]
+            )
+            curves.GetPointsAttr().Set(points)
+            curves.GetCurveVertexCountsAttr().Set(Vt.IntArray([n]))
+
+            # 선 두께 (vertex 보간)
+            curves.GetWidthsAttr().Set(Vt.FloatArray([0.2] * n))
+            UsdGeom.Primvar(curves.GetWidthsAttr()).SetInterpolation("vertex")
+
+            # 노란색 중심선
+            primvars_api = UsdGeom.PrimvarsAPI(curves.GetPrim())
+            color_pv = primvars_api.CreatePrimvar(
+                "displayColor",
+                Sdf.ValueTypeNames.Color3fArray,
+                UsdGeom.Tokens.constant,
+            )
+            color_pv.Set(Vt.Vec3fArray([Gf.Vec3f(1.0, 1.0, 0.0)]))  # 노란색
 
     # ─────────────────────────────────────────────────────────────────────────
     # 물리 스텝 전처리 (행동 스케일링)

@@ -29,6 +29,7 @@ from isaaclab.sim.spawners.materials import RigidBodyMaterialCfg
 from isaaclab.utils import configclass
 
 from isaaclab_autodrive.assets.robots.hunter import HUNTER_CFG
+from isaaclab_autodrive.assets.terrains import ROUGH_TERRAIN_USD
 from isaaclab_autodrive.terrains.track import AUSTIN_CSV
 
 
@@ -51,7 +52,8 @@ class HunterPathTrackingEnvCfg(DirectRLEnvCfg):
         physx=PhysxCfg(
             solver_type=1,
             max_position_iteration_count=4,
-            max_velocity_iteration_count=0,
+            max_velocity_iteration_count=1,               # 0 → 1: 속도 계산 정확도 향상
+            enable_external_forces_every_iteration=True,  # 속도 노이즈 감소
             bounce_threshold_velocity=0.2,
             friction_offset_threshold=0.04,
             friction_correlation_distance=0.025,
@@ -83,6 +85,9 @@ class HunterPathTrackingEnvCfg(DirectRLEnvCfg):
     action_space: int = 2             # [velocity, steering_angle]
     observation_space: int = 7        # [x, y, cte, he, roll, yaw, vel]
     state_space: int = 0
+
+    # ── 지형 설정 ───────────────────────────────────────────────────────────────
+    terrain_usd: str | None = ROUGH_TERRAIN_USD  # 지형 USD 경로 (None이면 기본 평지)
 
     # ── 트랙 설정 ───────────────────────────────────────────────────────────────
     track_csv: str = AUSTIN_CSV       # 학습에 사용할 트랙 CSV 경로

@@ -36,6 +36,9 @@ parser.add_argument("--max_iterations", type=int,  default=None)
 parser.add_argument("--video",          action="store_true", default=False)
 parser.add_argument("--video_length",   type=int,  default=200)
 parser.add_argument("--video_interval", type=int,  default=2000)
+parser.add_argument("--track",          type=str,  default="austin",
+                    choices=["austin", "brandshatch", "silverstone"],
+                    help="학습에 사용할 트랙 (기본값: austin)")
 cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
@@ -66,6 +69,7 @@ from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 
 import isaaclab_autodrive_tasks  # noqa: F401 — 환경 등록
+from isaaclab_autodrive.terrains.track import TRACK_CSV_MAP
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -85,6 +89,7 @@ def main(env_cfg: DirectRLEnvCfg, agent_cfg):
     if args_cli.max_iterations is not None:
         agent_cfg.max_iterations = args_cli.max_iterations
 
+    env_cfg.track_csv = TRACK_CSV_MAP[args_cli.track]
     env_cfg.seed = agent_cfg.seed
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 

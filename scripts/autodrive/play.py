@@ -26,6 +26,9 @@ parser.add_argument("--task",       type=str, default="Isaac-PathTracking-Hunter
 parser.add_argument("--num_envs",   type=int, default=16)
 parser.add_argument("--video",      action="store_true", default=False)
 parser.add_argument("--video_length", type=int, default=200)
+parser.add_argument("--track",      type=str, default="austin",
+                    choices=["austin", "brandshatch", "silverstone"],
+                    help="시각화에 사용할 트랙 (기본값: austin)")
 cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
@@ -42,20 +45,26 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import torch
 
+from importlib import metadata
+
 from isaaclab.envs import DirectRLEnvCfg
-from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
+from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper, handle_deprecated_rsl_rl_cfg
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 from rsl_rl.runners import OnPolicyRunner
 
 import isaaclab_autodrive_tasks  # noqa: F401
+from isaaclab_autodrive.terrains.track import TRACK_CSV_MAP
 
 
 @hydra_task_config(args_cli.task, "rsl_rl_cfg_entry_point")
 def main(env_cfg: DirectRLEnvCfg, agent_cfg):
     """시각화 메인 함수."""
     agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
+    installed_rsl_rl_version = metadata.version("rsl-rl-lib")
+    agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_rsl_rl_version)
     env_cfg.scene.num_envs = args_cli.num_envs
+    env_cfg.track_csv = TRACK_CSV_MAP[args_cli.track]
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
     # 체크포인트 경로
@@ -85,7 +94,7 @@ def main(env_cfg: DirectRLEnvCfg, agent_cfg):
     policy = runner.get_inference_policy(device=agent_cfg.device)
 
     # 추론 루프
-    obs, _ = env.get_observations()
+    obs = env.get_observations()
     while simulation_app.is_running():
         with torch.no_grad():
             action = policy(obs)

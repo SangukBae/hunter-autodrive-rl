@@ -64,8 +64,9 @@ HUNTER_CFG = ArticulationCfg(
             damping=1000.0,
         ),
         # 전륜 조향 위치 제어
+        # fr_.* 대신 fr_steer_.* 사용 — fr_left_jiont / fr_right_jiont(전륜 자유회전) 제외
         "steering": ImplicitActuatorCfg(
-            joint_names_expr=["fr_.*"],
+            joint_names_expr=["fr_steer_.*"],
             stiffness={
                 "fr_steer_left_joint": 20.0,
                 "fr_steer_right_joint": 20.0,

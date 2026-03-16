@@ -2,7 +2,6 @@
 # All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 
-from .buffer import LAP
-from .logger import Logger
+from .sac_agent import SACAgent
 
-__all__ = ["LAP", "Logger"]
+__all__ = ["SACAgent"]

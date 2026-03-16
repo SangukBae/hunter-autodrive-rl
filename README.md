@@ -258,15 +258,29 @@ total_reward = exp(-crosstrack_error/5.0) × exp(-heading_error/π) × (0.1 × v
 - [x] `rough_terrain_tracking` 태스크 추가
 - [x] TensorBoard 로그 및 체크포인트 확인
 
-### Phase 3 — 알고리즘 확장
-- [ ] TQC 알고리즘 Isaac Lab 환경 연동
-- [ ] TD7 알고리즘 연동
-- [ ] LAP PER 버퍼 연동
-- [ ] PPO vs TQC vs TD7 성능 비교
+### Phase 3 — 알고리즘 확장 ✅ 완료 (2026-03-16)
+- [x] TQC 알고리즘 Isaac Lab 환경 연동
+  - `tqc_agent.py`: Actor (Gaussian) + Quantile Critic, 자동 엔트로피 조정, top-quantile dropping
+  - `tqc_trainer.py`: 병렬 환경(num_envs) 배치 처리, 웜업·평가·체크포인트 루프
+  - `networks.py`: 2-layer MLP Actor, QuantileCritic (n_critics × n_quantiles)
+  - `path_tracking` 태스크: `tqc_cfg.yaml` (n_critics=5, n_quantiles=25, 1M steps)
+- [x] TD7 알고리즘 연동
+  - `td7_agent.py`: SALE 인코더, 체크포인팅, 성능 회귀 복원(>20% 하락 시 자동 롤백)
+  - `td7_trainer.py`: Isaac Lab 환경 연동, LAP max_priority 주기적 리셋
+  - `path_tracking` 태스크: `td7_cfg.yaml` (LAP PER 기본 활성화, 40K 체크포인트)
+- [x] LAP PER 버퍼 연동
+  - `common/buffer.py`: Latent Action Priority PER, `prioritized` 플래그로 ON/OFF
+  - TQC(선택적) · TD7(기본 활성) 모두 연동 완료
+- [x] PPO vs TQC vs TD7 성능 비교
+  - `benchmark.py`: 세 알고리즘 체크포인트 일괄 평가, mean/std/min/max 리포트 + JSON 저장
+- [x] `common/logger.py`: TensorBoard + JSON 이중 로깅
+
+> **미비 사항:** `rough_terrain_tracking` 태스크에는 PPO 설정만 존재 (TQC/TD7 YAML 미생성)
 
 ### Phase 4 — 하이브리드 제어 및 일반화
-- [ ] `hybrid_control` 태스크: LQR + RL 결합
-- [ ] `multi_track` 태스크: 3개 트랙 랜덤 전환
+- [ ] `hybrid_control` 태스크: LQR + RL 결합 (디렉터리 스켈레톤만 존재)
+- [ ] `multi_track` 태스크: 3개 트랙 랜덤 전환 (디렉터리 스켈레톤만 존재)
+- [ ] `rough_terrain_tracking` TQC/TD7 에이전트 설정 추가
 - [ ] 도메인 랜덤화 추가 (마찰, 센서 노이즈)
 
 ### Phase 5 — 실로봇 배포
