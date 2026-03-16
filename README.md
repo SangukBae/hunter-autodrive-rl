@@ -253,10 +253,10 @@ total_reward = exp(-crosstrack_error/5.0) × exp(-heading_error/π) × (0.1 × v
 - [x] 기본 임포트 테스트 통과
 
 ### Phase 2 — 기본 태스크 구현
-- [ ] `path_tracking_env.py` 구현 (`hunter_hybrid_env.py` 리팩토링)
-- [ ] RSL-RL PPO로 Austin 트랙 학습 확인
-- [ ] `rough_terrain_tracking` 태스크 추가
-- [ ] TensorBoard 로그 및 체크포인트 확인
+- [x] `path_tracking_env.py` 구현 (`hunter_hybrid_env.py` 리팩토링)
+- [x] RSL-RL PPO로 Austin 트랙 학습 확인
+- [x] `rough_terrain_tracking` 태스크 추가
+- [x] TensorBoard 로그 및 체크포인트 확인
 
 ### Phase 3 — 알고리즘 확장
 - [ ] TQC 알고리즘 Isaac Lab 환경 연동

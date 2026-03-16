@@ -42,7 +42,6 @@ class HunterPathTrackingEnvCfg(DirectRLEnvCfg):
         render_interval=20,   # 20 스텝마다 렌더링 → 제어 주기 0.1s
         use_fabric=True,
         enable_scene_query_support=False,
-        disable_contact_processing=False,
         gravity=(0.0, 0.0, -9.81),
         physics_material=RigidBodyMaterialCfg(
             static_friction=0.8,
