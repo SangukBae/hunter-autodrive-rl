@@ -306,21 +306,143 @@ cd /workspace/hunter_autodrive
 
 ## 학습 실행
 
+> 모든 명령은 `/workspace/hunter_autodrive/` 디렉터리에서 실행합니다.
+
+### PPO 학습 (`train.py`)
+
 ```bash
-# PPO 학습
-./isaaclab.sh -p scripts/autodrive/train.py \
+# 기본 학습 (4096 환경, 헤드리스)
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
     --task Isaac-PathTracking-Hunter-v0 \
     --num_envs 4096 --headless
 
-# TQC 학습
-./isaaclab.sh -p scripts/autodrive/train_tqc.py \
-    --task Isaac-PathTracking-Hunter-v0
-
-# 시각화
-./isaaclab.sh -p scripts/autodrive/play.py \
+# 트랙 선택 (austin / brandshatch / silverstone)
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
     --task Isaac-PathTracking-Hunter-v0 \
-    --num_envs 16
+    --num_envs 4096 --track brandshatch --headless
+
+# 소규모 디버그
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
+    --task Isaac-PathTracking-Hunter-v0 \
+    --num_envs 64 --headless
+
+# 비디오 녹화 포함 학습
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
+    --task Isaac-PathTracking-Hunter-v0 \
+    --num_envs 64 --video --video_length 200 --video_interval 2000
 ```
+
+주요 인수:
+
+| 인수 | 기본값 | 설명 |
+|---|---|---|
+| `--task` | `Isaac-PathTracking-Hunter-v0` | 학습 태스크 |
+| `--num_envs` | cfg 기본값 | 병렬 환경 수 |
+| `--max_iterations` | cfg 기본값 | 학습 반복 횟수 |
+| `--track` | `austin` | 트랙 선택 (`austin` / `brandshatch` / `silverstone`) |
+| `--seed` | cfg 기본값 | 랜덤 시드 |
+| `--headless` | `False` | 헤드리스 실행 |
+| `--video` | `False` | 학습 중 비디오 녹화 |
+
+로그 저장 경로: `logs/rsl_rl/{experiment_name}/{timestamp}/`
+
+---
+
+### TQC / TD7 학습 (`train_tqc.py`)
+
+```bash
+# TQC 학습 (기본값)
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
+    --task Isaac-PathTracking-Hunter-v0 \
+    --algo tqc --num_envs 64 --headless
+
+# TD7 학습 (LAP PER 기본 활성화)
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
+    --task Isaac-PathTracking-Hunter-v0 \
+    --algo td7 --num_envs 64 --headless
+
+# 트랙 및 커스텀 config 지정
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
+    --task Isaac-PathTracking-Hunter-v0 \
+    --algo tqc --track silverstone \
+    --cfg path/to/tqc_cfg.yaml --headless
+```
+
+주요 인수:
+
+| 인수 | 기본값 | 설명 |
+|---|---|---|
+| `--algo` | `tqc` | 알고리즘 선택 (`tqc` / `td7`) |
+| `--task` | `Isaac-PathTracking-Hunter-v0` | 학습 태스크 |
+| `--num_envs` | cfg 기본값 | 병렬 환경 수 |
+| `--track` | `austin` | 트랙 선택 |
+| `--cfg` | 태스크 내 기본 YAML | 커스텀 config 파일 경로 |
+| `--seed` | cfg 기본값 | 랜덤 시드 |
+
+로그 저장 경로: `logs/{algo}/{experiment_name}/{timestamp}/`
+
+---
+
+### 시각화 (`play.py`)
+
+```bash
+# PPO 정책 시각화 (체크포인트 자동 탐색)
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/play.py \
+    --task Isaac-PathTracking-Hunter-Play-v0 \
+    --num_envs 16
+
+# 체크포인트 직접 지정 + 트랙 선택
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/play.py \
+    --task Isaac-PathTracking-Hunter-Play-v0 \
+    --num_envs 16 --track brandshatch \
+    --checkpoint logs/rsl_rl/hunter_path_tracking/2026-.../model_1000.pt
+
+# 비디오 저장
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/play.py \
+    --task Isaac-PathTracking-Hunter-Play-v0 \
+    --num_envs 16 --video --video_length 200
+```
+
+> **주의:** play 태스크는 `Isaac-PathTracking-Hunter-Play-v0` 사용 (train 태스크와 별도)
+
+---
+
+### 알고리즘 비교 벤치마크 (`benchmark.py`)
+
+```bash
+# PPO / TQC / TD7 전체 비교
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/benchmark.py \
+    --task Isaac-PathTracking-Hunter-v0 \
+    --ppo_ckpt logs/rsl_rl/hunter_path_tracking/2026-.../model_0.pt \
+    --tqc_ckpt logs/tqc/hunter_path_tracking_tqc/.../model_final.pt \
+    --td7_ckpt logs/td7/hunter_path_tracking_td7/.../model_final.pt \
+    --num_envs 16 --eval_episodes 20
+
+# 특정 알고리즘만 평가
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/benchmark.py \
+    --task Isaac-PathTracking-Hunter-v0 \
+    --tqc_ckpt logs/tqc/.../model_final.pt \
+    --num_envs 16
+
+# 결과 JSON 저장 경로 지정
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/benchmark.py \
+    --ppo_ckpt ... --tqc_ckpt ... --td7_ckpt ... \
+    --output outputs/my_benchmark.json
+```
+
+주요 인수:
+
+| 인수 | 기본값 | 설명 |
+|---|---|---|
+| `--ppo_ckpt` | `None` | PPO 체크포인트 경로 (`.pt`) |
+| `--tqc_ckpt` | `None` | TQC 체크포인트 경로 (`.pt`) |
+| `--td7_ckpt` | `None` | TD7 체크포인트 경로 (`.pt`) |
+| `--eval_episodes` | `20` | 알고리즘당 평가 에피소드 수 |
+| `--max_steps` | `2000` | 에피소드당 최대 스텝 |
+| `--track` | `austin` | 평가 트랙 |
+| `--output` | `outputs/benchmark_{ts}.json` | 결과 JSON 저장 경로 |
+
+결과는 콘솔 테이블(mean/std/min/max) 및 JSON으로 자동 저장됩니다.
 
 ## ROS2 배포
 
