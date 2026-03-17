@@ -11,17 +11,17 @@
 사용 예시:
     # TQC 학습
     /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-        --task Isaac-PathTracking-Hunter-v0 \
+        --task Isaac-LidarNav-Hunter-v0 \
         --algo tqc --num_envs 64 --headless
 
     # TD7 학습 (LAP PER 활성화)
     /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-        --task Isaac-PathTracking-Hunter-v0 \
+        --task Isaac-LidarNav-Hunter-v0 \
         --algo td7 --num_envs 64 --headless
 
     # 커스텀 config 경로
     /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-        --task Isaac-PathTracking-Hunter-v0 \
+        --task Isaac-LidarNav-Hunter-v0 \
         --algo tqc --cfg path/to/tqc_cfg.yaml --headless
 """
 
@@ -33,14 +33,11 @@ import sys
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Hunter SE TQC/TD7 오프-폴리시 학습")
-parser.add_argument("--task",     type=str, default="Isaac-PathTracking-Hunter-v0")
+parser.add_argument("--task",     type=str, default="Isaac-LidarNav-Hunter-v0")
 parser.add_argument("--algo",     type=str, default="tqc", choices=["tqc", "td7"])
 parser.add_argument("--cfg",      type=str, default=None, help="YAML 설정 파일 경로 (없으면 태스크 내 기본값 사용)")
 parser.add_argument("--num_envs", type=int, default=None)
 parser.add_argument("--seed",     type=int, default=None)
-parser.add_argument("--track",    type=str, default="austin",
-                    choices=["austin", "brandshatch", "silverstone"],
-                    help="학습에 사용할 트랙 (기본값: austin)")
 AppLauncher.add_app_launcher_args(parser)
 args_cli, _ = parser.parse_known_args()
 
@@ -53,7 +50,6 @@ import yaml
 from datetime import datetime
 
 import isaaclab_autodrive_tasks  # noqa: F401 — 환경 등록
-from isaaclab_autodrive.terrains.track import TRACK_CSV_MAP
 
 # 알고리즘별 트레이너
 sys.path.insert(0, os.path.dirname(__file__))
@@ -115,7 +111,6 @@ def main():
 
     if args_cli.num_envs is not None:
         env_cfg.scene.num_envs = args_cli.num_envs
-    env_cfg.track_csv = TRACK_CSV_MAP[args_cli.track]
 
     env = gym.make(task, cfg=env_cfg)
 

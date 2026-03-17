@@ -4,12 +4,11 @@
 
 """DirectRLEnv 기반 Hunter SE 자율주행 태스크."""
 
-# Phase 2: path_tracking 구현 완료
-from . import path_tracking
+# Phase 3: LiDAR 자율주행 태스크 (주력)
+from . import lidar_nav
 
-# Phase 2: rough_terrain_tracking 구현 완료
-from . import rough_terrain_tracking
-
-# Phase 4: 구현 예정
-# from . import hybrid_control
-# from . import multi_track
+# legacy: path tracking 계열 — 격리 보존, 미사용
+# from .legacy import path_tracking
+# from .legacy import rough_terrain_tracking
+# from .legacy import hybrid_control
+# from .legacy import multi_track
