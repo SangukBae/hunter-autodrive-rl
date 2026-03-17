@@ -39,7 +39,7 @@ class HunterPathTrackingEnv(DirectRLEnv):
 
     행동 (2D):
         velocity:       [-1, 1] → [0, 21.82] rad/s (후륜 각속도)
-        steering_angle: [-1, 1] → [-0.524, 0.524] rad (중앙 조향각)
+        steering_angle: [-1, 1] → [-0.384, 0.384] rad (중앙 조향각, 22°)
 
     Ackermann 조향 변환:
         delta_out = atan(L * tan(delta) / (L + 0.5 * tw * tan(delta)))
@@ -49,9 +49,9 @@ class HunterPathTrackingEnv(DirectRLEnv):
     cfg: HunterPathTrackingEnvCfg
 
     # Hunter SE 제원
-    WHEELBASE: float = 0.608   # 축거 [m]
-    TRACK_WIDTH: float = 0.554 # 윤거 [m]
-    MAX_STEER: float = 0.524   # 최대 조향각 [rad]
+    WHEELBASE: float = 0.550   # 축거 [m]  — PDF: Front/rear track 550 mm
+    TRACK_WIDTH: float = 0.460 # 윤거 [m]  — PDF: Axle Track 460 mm
+    MAX_STEER: float = 0.384   # 최대 조향각 [rad] (22°) — PDF: Max inner wheel steering angle 22°
     MAX_WHEEL_VEL: float = 21.82  # 최대 휠 각속도 [rad/s]
 
     def __init__(self, cfg: HunterPathTrackingEnvCfg, render_mode: str | None = None, **kwargs):
@@ -132,47 +132,31 @@ class HunterPathTrackingEnv(DirectRLEnv):
         self._draw_track_visualization()
 
     def _draw_track_visualization(self) -> None:
-        """트랙 경로를 USD BasisCurves 프림으로 시각화합니다.
+        """트랙 경로를 debug_draw로 시각화합니다.
 
         env_spacing 기준으로 최대 8개 환경에 노란색 중심선을 그립니다.
-        train/play/benchmark 등 모든 실행 파일에서 동일하게 적용됩니다.
         """
         try:
-            import omni.usd
-            from pxr import Gf, Sdf, UsdGeom, Vt
-        except ImportError:
+            from omni.isaac.debug_draw import _debug_draw
+            draw = _debug_draw.acquire_debug_draw_interface()
+        except Exception:
             return
 
-        stage = omni.usd.get_context().get_stage()
-        max_vis = min(self.num_envs, 8)  # 최대 8개 환경 시각화
+        max_vis = min(self.num_envs, 8)
+        z = 0.1  # 지면 위 높이 [m]
 
         for env_idx in range(max_vis):
-            tx = self.translated_coordinates[env_idx, :, 0].cpu().numpy()
-            ty = self.translated_coordinates[env_idx, :, 1].cpu().numpy()
+            tx = self.translated_coordinates[env_idx, :, 0].cpu().numpy().tolist()
+            ty = self.translated_coordinates[env_idx, :, 1].cpu().numpy().tolist()
             n = len(tx)
 
-            prim_path = f"/World/TrackVis/env_{env_idx}"
-            curves = UsdGeom.BasisCurves.Define(stage, prim_path)
-            curves.GetTypeAttr().Set("linear")
+            # 연속된 선분으로 트랙 그리기 (노란색, 두께 3)
+            point_list_0 = [(tx[i],     ty[i],     z) for i in range(n - 1)]
+            point_list_1 = [(tx[i + 1], ty[i + 1], z) for i in range(n - 1)]
+            colors  = [(1.0, 1.0, 0.0, 1.0)] * (n - 1)  # RGBA 노란색
+            sizes   = [3.0] * (n - 1)
 
-            points = Vt.Vec3fArray(
-                [Gf.Vec3f(float(tx[i]), float(ty[i]), 0.05) for i in range(n)]
-            )
-            curves.GetPointsAttr().Set(points)
-            curves.GetCurveVertexCountsAttr().Set(Vt.IntArray([n]))
-
-            # 선 두께 (vertex 보간)
-            curves.GetWidthsAttr().Set(Vt.FloatArray([0.2] * n))
-            UsdGeom.Primvar(curves.GetWidthsAttr()).SetInterpolation("vertex")
-
-            # 노란색 중심선
-            primvars_api = UsdGeom.PrimvarsAPI(curves.GetPrim())
-            color_pv = primvars_api.CreatePrimvar(
-                "displayColor",
-                Sdf.ValueTypeNames.Color3fArray,
-                UsdGeom.Tokens.constant,
-            )
-            color_pv.Set(Vt.Vec3fArray([Gf.Vec3f(1.0, 1.0, 0.0)]))  # 노란색
+            draw.draw_lines(point_list_0, point_list_1, colors, sizes)
 
     # ─────────────────────────────────────────────────────────────────────────
     # 물리 스텝 전처리 (행동 스케일링)
@@ -282,7 +266,8 @@ class HunterPathTrackingEnv(DirectRLEnv):
 
         vel = self.hunter.data.root_lin_vel_b[:, 0]
 
-        terminated = (cte >= self.cfg.max_crosstrack_error) | (vel <= self.cfg.min_velocity)
+        grace = self.episode_length_buf >= self.cfg.velocity_check_start_step
+        terminated = (cte >= self.cfg.max_crosstrack_error) | (grace & (vel <= self.cfg.min_velocity))
         time_out   = self.episode_length_buf >= self.max_episode_length - 1
 
         self.hunter_reset = terminated

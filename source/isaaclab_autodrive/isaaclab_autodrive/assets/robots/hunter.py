@@ -9,9 +9,9 @@
 
 Hunter SE 제원:
     - 조향 방식: Ackermann 전륜 조향
-    - 축거 (Wheelbase): L = 0.608 m
-    - 윤거 (Track width): 0.554 m
-    - 최대 조향각: ±0.524 rad (±30°)
+    - 축거 (Wheelbase): L = 0.550 m  (PDF: Front/rear track 550 mm)
+    - 윤거 (Track width): 0.460 m  (PDF: Axle Track 460 mm)
+    - 최대 조향각: ±0.384 rad (±22°)  (PDF: Maximum inner wheel steering angle 22°)
     - 구동 방식: 후륜 속도 제어 (re_left_jiont, re_right_jiont)
     - 조향 제어: 전륜 위치 제어 (fr_steer_left_joint, fr_steer_right_joint)
 """
@@ -41,20 +41,20 @@ HUNTER_CFG = ArticulationCfg(
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
-            max_depenetration_velocity=0.1,
+            max_depenetration_velocity=1.0,  # 0.1 → 1.0: 지형 겹침 해소 속도 향상
             enable_gyroscopic_forces=True,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
-            solver_position_iteration_count=4,
-            solver_velocity_iteration_count=0,
+            solver_position_iteration_count=8,   # 4 → 8: 지형 접촉 해상도 향상
+            solver_velocity_iteration_count=4,   # 0 → 4: 착지 시 속도 계산 안정화
             sleep_threshold=0.005,
             stabilization_threshold=0.001,
         ),
         copy_from_source=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.2),
+        pos=(0.0, 0.0, 0.0),  # 울퉁불퉁한 지형 위에서 안전하게 낙하 후 착지
     ),
     actuators={
         # 후륜 속도 제어 — stiffness=0 (velocity mode)

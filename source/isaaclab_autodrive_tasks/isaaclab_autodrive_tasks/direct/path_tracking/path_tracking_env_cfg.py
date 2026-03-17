@@ -8,7 +8,7 @@
     [x, y, crosstrack_error, heading_error, roll, yaw, linear_velocity]
 
 행동 공간 (2D):
-    [velocity (-1 ~ 1 → 0 ~ 21.82 rad/s), steering_angle (-0.524 ~ 0.524 rad)]
+    [velocity (-1 ~ 1 → 0 ~ 21.82 rad/s), steering_angle (-0.384 ~ 0.384 rad)]
 
 보상:
     reward = exp(-cte/5.0) * exp(-he/pi) * (0.1 * vel/3.0)
@@ -97,6 +97,7 @@ class HunterPathTrackingEnvCfg(DirectRLEnvCfg):
     # ── 리셋 조건 ───────────────────────────────────────────────────────────────
     max_crosstrack_error: float = 5.0   # 최대 허용 횡방향 오차 [m]
     min_velocity: float = 0.01          # 최소 속도 (정지 감지) [m/s]
+    velocity_check_start_step: int = 10 # 이 스텝 이후부터 속도 종료 조건 적용 (초반 grace period)
 
 
 @configclass

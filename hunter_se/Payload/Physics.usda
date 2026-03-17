@@ -1,0 +1,325 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "URDF USD Converter v0.1.0"
+    }
+    defaultPrim = "hunter_se_description"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "hunter_se_description" (
+    prepend apiSchemas = ["PhysicsArticulationRootAPI", "NewtonArticulationRootAPI"]
+)
+{
+    def Scope "Physics"
+    {
+        def PhysicsRevoluteJoint "fr_steer_left_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_left_link>
+            point3f physics:localPos0 = (0.34058, 0.24619, -0.1535)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -22.0
+            float physics:upperLimit = 22.0
+            custom float urdf:limit:effort = 0
+            custom float urdf:limit:velocity = 0
+            float drive:angular:physics:stiffness = 10000000.0
+            float drive:angular:physics:damping = 100000.0
+            float drive:angular:physics:maxForce = 6000.0
+            float drive:angular:physics:targetPosition = 0.0
+        }
+
+        def PhysicsRevoluteJoint "fr_left_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link/fr_steer_left_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_left_link/fr_left_link>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.7071081, -0.70710546, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            custom float urdf:dynamics:damping = 0
+            custom float urdf:dynamics:friction = 15
+            float drive:angular:physics:stiffness = 0.0
+            float drive:angular:physics:damping = 0.5
+            float drive:angular:physics:targetPosition = 0.0
+        }
+
+        def PhysicsRevoluteJoint "fr_steer_right_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_right_link>
+            point3f physics:localPos0 = (0.34219, -0.24619, -0.1535)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -22.0
+            float physics:upperLimit = 22.0
+            custom float urdf:limit:effort = 0
+            custom float urdf:limit:velocity = 0
+            float drive:angular:physics:stiffness = 10000000.0
+            float drive:angular:physics:damping = 100000.0
+            float drive:angular:physics:maxForce = 6000.0
+            float drive:angular:physics:targetPosition = 0.0
+        }
+
+        def PhysicsRevoluteJoint "fr_right_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link/fr_steer_right_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_right_link/fr_right_link>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (-0.70710546, 0.7071081, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            custom float urdf:dynamics:damping = 0
+            custom float urdf:dynamics:friction = 15
+            float drive:angular:physics:stiffness = 0.0
+            float drive:angular:physics:damping = 0.5
+            float drive:angular:physics:targetPosition = 0.0
+        }
+
+        def PhysicsRevoluteJoint "re_left_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/re_left_link>
+            point3f physics:localPos0 = (-0.2078, 0.252, -0.158)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.7071081, -0.70710546, 0, 0)
+            quatf physics:localRot1 = (0, -1, 0, 0)
+            custom float urdf:dynamics:damping = 0
+            custom float urdf:dynamics:friction = 15
+            float drive:angular:physics:stiffness = 0.0
+            float drive:angular:physics:damping = 17453.0
+            float drive:angular:physics:targetVelocity = 0.0
+        }
+
+        def PhysicsRevoluteJoint "re_right_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/re_right_link>
+            point3f physics:localPos0 = (-0.2078, -0.252, -0.158)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (-0.70710546, 0.7071081, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            custom float urdf:dynamics:damping = 0
+            custom float urdf:dynamics:friction = 15
+            float drive:angular:physics:stiffness = 0.0
+            float drive:angular:physics:damping = 17453.0
+            float drive:angular:physics:targetVelocity = 0.0
+        }
+
+        def PhysicsRevoluteJoint "front_steer_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/front_steer_link>
+            point3f physics:localPos0 = (0.40792, -0.000011431, -0.085581)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -41.25296
+            float physics:upperLimit = 41.25296
+            custom float urdf:limit:effort = 0
+            custom float urdf:limit:velocity = 0
+            float drive:angular:physics:stiffness = 10000000.0
+            float drive:angular:physics:damping = 100000.0
+            float drive:angular:physics:targetPosition = 0.0
+        }
+
+        def PhysicsRevoluteJoint "rear_wheel_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            uniform token physics:axis = "Z"
+            rel physics:body0 = </hunter_se_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_description/Geometry/base_link/rear_wheel_link>
+            point3f physics:localPos0 = (-0.30408, -0.000011431, -0.085581)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.9999987, 0.0016194452, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float drive:angular:physics:stiffness = 10000000.0
+            float drive:angular:physics:damping = 100000.0
+            float drive:angular:physics:targetPosition = 0.0
+        }
+    }
+
+    over "Geometry"
+    {
+        over "base_link" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            point3f physics:centerOfMass = (0.037414003, -0.0003730052, -0.07712829)
+            float3 physics:diagonalInertia = (0.12309484, 0.21914472, 0.31372702)
+            float physics:mass = 24.73
+            quatf physics:principalAxes = (0.99992067, -0.00005506678, -0.012597327, -0.000011024965)
+
+            over "base_link_1" (
+                prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+            )
+            {
+                uniform token physics:approximation = "convexHull"
+            }
+
+            over "fr_steer_left_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (-0.00027764923, 0.016353978, 4.9734616e-9)
+                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
+                float physics:mass = 3.149
+                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                over "box_1" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI"]
+                )
+                {
+                }
+
+                over "fr_left_link" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (-3.58375e-10, 4.9734616e-9, -0.016356334)
+                    float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
+                    float physics:mass = 3.149
+                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                    over "fr_left_link_1" (
+                        prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+                    )
+                    {
+                        uniform token physics:approximation = "boundingSphere"
+                    }
+                }
+            }
+
+            over "fr_steer_right_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (0.00027498198, -0.016354023, -3.248024e-11)
+                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
+                float physics:mass = 3.149
+                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                over "box_1" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI"]
+                )
+                {
+                }
+
+                over "fr_right_link" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (0.00027498198, 3.248013e-11, -0.016354023)
+                    float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
+                    float physics:mass = 3.149
+                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                    over "fr_right_link_1" (
+                        prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+                    )
+                    {
+                        uniform token physics:approximation = "boundingSphere"
+                    }
+                }
+            }
+
+            over "re_left_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (1.245e-9, 0.0000017252, -0.010284)
+                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
+                float physics:mass = 3.149
+                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                over "re_left_link_1" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+                )
+                {
+                    uniform token physics:approximation = "boundingSphere"
+                }
+            }
+
+            over "re_right_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (0, 0, -0.010284)
+                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
+                float physics:mass = 3.149
+                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                over "re_right_link_1" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+                )
+                {
+                    uniform token physics:approximation = "boundingSphere"
+                }
+            }
+
+            over "front_steer_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (0.049836, 8.1046e-15, 0.017912)
+                float3 physics:diagonalInertia = (1.6824691e-7, 7.336131e-7, 7.549e-7)
+                float physics:mass = 0.0049179
+                quatf physics:principalAxes = (0.70707345, -0.70707345, 0.00686424, -0.00686424)
+
+                over "cylinder_1" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI"]
+                )
+                {
+                }
+            }
+
+            over "rear_wheel_link" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (-0.02, 0.0031269, -0.12735)
+                float3 physics:diagonalInertia = (9.5165393e-7, 0.000001092406, 0.0000011821)
+                float physics:mass = 0.0049179
+                quatf physics:principalAxes = (-0.5216815, 0.4773319, 0.52170056, 0.4773167)
+
+                over "cylinder_1" (
+                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI"]
+                )
+                {
+                }
+            }
+        }
+    }
+}
+
+def PhysicsScene "PhysicsScene"
+{
+}
+

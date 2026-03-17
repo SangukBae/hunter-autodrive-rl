@@ -21,7 +21,6 @@ import sys
 import os
 
 # Isaac Lab cli_args 경로 추가
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl")
 
 from isaaclab.app import AppLauncher

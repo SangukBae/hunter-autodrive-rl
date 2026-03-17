@@ -9,7 +9,7 @@
     Author: Atsushi Sakai (@Atsushi_twi)
 
 Hunter SE 제원 기반 기본값:
-    - 축거: L = 0.608 m
+    - 축거: L = 0.550 m  (PDF: Front/rear track 550 mm)
     - 시뮬레이션 dt: 0.005 s
     - LQR Q: diag(1, 10, 100, 100)
     - LQR R: eye(1)
@@ -45,24 +45,24 @@ class LQRController:
     최적 피드백 게인 K 를 구합니다.
 
     Args:
-        L: 축거 [m] (기본값: 0.608)
+        L: 축거 [m] (기본값: 0.550)
         dt: 제어 주기 [s] (기본값: 0.005)
         Q: 상태 가중 행렬 shape (4, 4) (기본값: diag(1, 10, 100, 100))
         R: 입력 가중 행렬 shape (1, 1) (기본값: eye(1))
         max_iter: DARE 최대 반복 횟수 (기본값: 150)
         eps: 수렴 판단 임계값 (기본값: 0.0167)
-        max_steer: 최대 조향각 [rad] (기본값: 0.524)
+        max_steer: 최대 조향각 [rad] (기본값: 0.384, 22°)
     """
 
     def __init__(
         self,
-        L: float = 0.608,
+        L: float = 0.550,
         dt: float = 0.005,
         Q: np.ndarray | None = None,
         R: np.ndarray | None = None,
         max_iter: int = 150,
         eps: float = 0.0167,
-        max_steer: float = 0.524,
+        max_steer: float = 0.384,
     ):
         self.L = L
         self.dt = dt

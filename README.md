@@ -1,8 +1,10 @@
 # Hunter SE Autonomous Driving RL
 
-Hunter SE 로봇을 대상으로 Isaac Lab / Isaac Sim 기반 강화학습으로 자율주행을 학습하고, 학습된 정책을 실로봇에 배포하는 연구 프로젝트입니다.
+Hunter SE 로봇을 대상으로 Isaac Lab / Isaac Sim 기반 강화학습으로 **LiDAR 기반 자율주행(goal-reaching + obstacle avoidance)** 을 학습하고, 학습된 정책을 실로봇에 배포하는 연구 프로젝트입니다.
 
-> **논문 참고:** IEEE/ASME AIM 2024 — *Rough Terrain Path Tracking of an Ackermann Steered Platform using Hybrid Deep Reinforcement Learning*
+> **연구 주제:** LiDAR 기반 실내 모바일 로봇 자율주행 — 목표 지점 도달 + 장애물 회피
+> **핵심 알고리즘:** TQC (Truncated Quantile Critics), TD7
+> **시뮬레이터:** Isaac Lab (Isaac Sim 4.x 기반)
 
 ---
 
@@ -12,7 +14,7 @@ Hunter SE 로봇을 대상으로 Isaac Lab / Isaac Sim 기반 강화학습으로
 |---|---|
 | Isaac Lab (프레임워크) | `/workspace/isaaclab/` |
 | 본 프로젝트 (커스텀 코드) | `/workspace/hunter_autodrive/` |
-| Hunter USD 에셋 | `/robot_isaac/ros2_ws/src/Hybrid_Deep_Reinforcement_Learning_RoughTerrain/omniisaacgymenvs/USD_Files/hunter_aim4.usd` |
+| Hunter SE USD 에셋 | `/workspace/hunter_autodrive/hunter_se/` |
 | ROS2 워크스페이스 | `/robot_isaac/ros2_ws/` |
 
 ---
@@ -26,6 +28,7 @@ Hunter SE 로봇을 대상으로 Isaac Lab / Isaac Sim 기반 강화학습으로
 │  /workspace/hunter_autodrive/                               │
 │  ├── source/isaaclab_autodrive/        ← 핵심 모듈           │
 │  └── source/isaaclab_autodrive_tasks/  ← RL 환경 태스크       │
+│       └── direct/lidar_nav/           ← [주력] LiDAR 자율주행 │
 │                                                             │
 │  /workspace/isaaclab/                  ← Isaac Lab (의존성)  │
 │                                                             │
@@ -50,158 +53,132 @@ Hunter SE 로봇을 대상으로 Isaac Lab / Isaac Sim 기반 강화학습으로
 ```
 hunter_autodrive/
 │
+├── hunter_se/                               # [로봇 자산] Hunter SE 물리 모델
+│   ├── hunter_se_description.usda           #   최상위 USD 기술자
+│   ├── hunter_se_cfg.py                     #   ArticulationCfg (Isaac Lab)
+│   └── Payload/
+│       ├── Physics.usda                     #   관절 물리 설정 (검증 완료)
+│       ├── Geometry.usda                    #   충돌/시각 메시
+│       └── Materials.usda
+│
 ├── source/
 │   │
-│   ├── isaaclab_autodrive/                      # [패키지 1] 핵심 자율주행 모듈
+│   ├── isaaclab_autodrive/                  # [패키지 1] 핵심 자율주행 모듈
 │   │   ├── config/
-│   │   │   └── extension.toml                   # 패키지 메타: deps=[isaaclab]
+│   │   │   └── extension.toml              #   패키지 메타: deps=[isaaclab]
 │   │   ├── setup.py
-│   │   ├── docs/
 │   │   └── isaaclab_autodrive/
-│   │       ├── __init__.py
 │   │       ├── assets/
-│   │       │   ├── __init__.py
 │   │       │   └── robots/
-│   │       │       ├── __init__.py
-│   │       │       └── hunter.py                # HUNTER_CFG (ArticulationCfg)
-│   │       │                                    #   USD: hunter_aim4.usd
-│   │       │                                    #   휠: velocity 제어 (re_.*)
-│   │       │                                    #   조향: position 제어 (fr_.*)
-│   │       │                                    #   축거: L=0.608m
-│   │       ├── terrains/
-│   │       │   ├── __init__.py
-│   │       │   ├── track/
-│   │       │   │   ├── __init__.py
-│   │       │   │   ├── track_terrain_cfg.py     # 평탄 트랙 지형
-│   │       │   │   └── waypoints/
-│   │       │   │       ├── austin_centerline2.csv
-│   │       │   │       ├── brandshatch_centerline.csv
-│   │       │   │       └── silverstone_centerline.csv
-│   │       │   └── rough/
-│   │       │       ├── __init__.py
-│   │       │       └── rough_terrain_cfg.py     # 험로 지형 (terraintrain_9_uneven.usd)
+│   │       │       └── hunter.py           #   HUNTER_SE_CFG (hunter_se/ 참조)
+│   │       ├── terrains/                   #   [legacy] track/rough 지형
 │   │       └── utils/
-│   │           ├── __init__.py
-│   │           ├── cubic_spline.py              # CubicSpline1D / CubicSpline2D / calc_spline_course
-│   │           ├── lqr_controller.py            # LQR (DARE 풀이), State 클래스
-│   │           └── angle.py                     # angle_mod, rot_mat_2d
+│   │           ├── angle.py               #   angle_mod, rot_mat_2d (재사용)
+│   │           ├── cubic_spline.py        #   [legacy] 경로 추종용
+│   │           └── lqr_controller.py      #   [legacy] LQR 제어기
 │   │
-│   └── isaaclab_autodrive_tasks/                # [패키지 2] RL 환경 태스크
+│   └── isaaclab_autodrive_tasks/            # [패키지 2] RL 환경 태스크
 │       ├── config/
-│       │   └── extension.toml                   # deps=[isaaclab, isaaclab_autodrive]
+│       │   └── extension.toml              #   deps=[isaaclab, isaaclab_autodrive]
 │       ├── setup.py
-│       ├── docs/
 │       └── isaaclab_autodrive_tasks/
-│           ├── __init__.py
-│           └── direct/                          # DirectRLEnv 기반
-│               ├── __init__.py
+│           └── direct/
 │               │
-│               ├── path_tracking/               # [태스크 1] 평탄 경로 추종
-│               │   ├── __init__.py              #   gym.register("Isaac-PathTracking-Hunter-v0")
-│               │   ├── path_tracking_env_cfg.py #   obs=7D, act=2D, envs=4096, ep=200s
-│               │   ├── path_tracking_env.py     #   경로 추종 + Ackermann 조향 적용
+│               ├── lidar_nav/              # ★ [주력 태스크] LiDAR 자율주행
+│               │   ├── __init__.py         #   gym.register("Isaac-LidarNav-Hunter-v0")
+│               │   ├── lidar_nav_env_cfg.py#   obs=82D, act=2D, 맵/보상/LiDAR 파라미터
+│               │   ├── lidar_nav_env.py    #   goal-reaching + obstacle avoidance 환경
+│               │   ├── observations.py     #   80-sector LiDAR + goal(dist, angle)
+│               │   ├── rewards.py          #   goal_progress / goal_reach / collision / proximity
+│               │   ├── terminations.py     #   goal / collision / timeout
+│               │   ├── randomization.py    #   robot / goal / obstacle 위치 랜덤화
 │               │   └── agents/
-│               │       ├── rsl_rl_ppo_cfg.py    #   PPO: lr=1e-3, hidden=[256,256]
-│               │       ├── tqc_cfg.yaml         #   TQC: n_critics=5, n_quantiles=25
-│               │       └── td7_cfg.yaml         #   TD7 하이퍼파라미터
+│               │       ├── tqc_cfg.yaml    #   TQC: n_critics=5, n_quantiles=25
+│               │       └── td7_cfg.yaml    #   TD7: LAP PER 기본 활성
 │               │
-│               ├── rough_terrain_tracking/      # [태스크 2] 험로 경로 추종
-│               │   ├── __init__.py              #   gym.register("Isaac-RoughTerrainTracking-Hunter-v0")
-│               │   ├── rough_env_cfg.py         #   험로 지형 + 도메인 랜덤화
-│               │   ├── rough_env.py
-│               │   └── agents/
-│               │       ├── rsl_rl_ppo_cfg.py
-│               │       └── tqc_cfg.yaml
-│               │
-│               ├── hybrid_control/              # [태스크 3] 하이브리드 (DRL + LQR)
-│               │   ├── __init__.py              #   gym.register("Isaac-HybridControl-Hunter-v0")
-│               │   ├── hybrid_env_cfg.py        #   LQR Q=diag(1,10,100,100), R=1
-│               │   ├── hybrid_env.py            #   RL 액션 + LQR 조향 보정
-│               │   └── agents/
-│               │       ├── rsl_rl_ppo_cfg.py
-│               │       └── tqc_cfg.yaml
-│               │
-│               └── multi_track/                 # [태스크 4] 다중 트랙 일반화
-│                   ├── __init__.py              #   gym.register("Isaac-MultiTrack-Hunter-v0")
-│                   ├── multi_track_env_cfg.py   #   Austin / BrandsHatch / Silverstone 랜덤 전환
-│                   ├── multi_track_env.py
-│                   └── agents/
-│                       └── rsl_rl_ppo_cfg.py
+│               └── legacy/                 # [legacy] path tracking 계열 (보존)
+│                   ├── path_tracking/      #   crosstrack error 기반 경로 추종
+│                   ├── rough_terrain_tracking/
+│                   ├── hybrid_control/
+│                   └── multi_track/
 │
 ├── scripts/
 │   └── autodrive/
-│       ├── train.py                             # RSL-RL PPO 학습 (--task, --num_envs, --headless)
-│       ├── train_tqc.py                         # TQC off-policy 학습
-│       ├── play.py                              # 학습된 정책 시각화
-│       ├── benchmark.py                         # PPO vs TQC vs TD7 비교
+│       ├── train.py                        # RSL-RL PPO 학습
+│       ├── train_tqc.py                    # TQC / TD7 off-policy 학습
+│       ├── play.py                         # 학습된 정책 시각화
+│       ├── benchmark.py                    # 알고리즘 비교 평가
+│       ├── spawn_hunter_se.py              # 로봇 단독 스폰/검증
+│       ├── drive_hunter_se.py              # Ackermann 수동 주행 검증
 │       ├── algorithms/
-│       │   ├── __init__.py
 │       │   ├── tqc/
-│       │   │   ├── __init__.py
-│       │   │   ├── tqc_agent.py                 # TQC (Actor + Critic + 엔트로피 자동조정)
-│       │   │   ├── tqc_trainer.py               # Isaac Lab 환경 연동 학습 루프
-│       │   │   └── networks.py                  # Actor (Gaussian), Critic (Quantile)
+│       │   │   ├── tqc_agent.py           #   Actor (Gaussian) + Quantile Critic
+│       │   │   ├── tqc_trainer.py         #   Isaac Lab 환경 연동 학습 루프
+│       │   │   └── networks.py            #   MLP Actor, QuantileCritic
 │       │   ├── td7/
-│       │   │   ├── __init__.py
-│       │   │   ├── td7_agent.py
+│       │   │   ├── td7_agent.py           #   SALE 인코더, 성능 회귀 복원
 │       │   │   └── td7_trainer.py
 │       │   ├── sac/
-│       │   │   ├── __init__.py
 │       │   │   └── sac_agent.py
 │       │   └── common/
-│       │       ├── __init__.py
-│       │       ├── buffer.py                    # LAP Prioritized Experience Replay
-│       │       └── logger.py                    # TensorBoard + JSON 로거
+│       │       ├── buffer.py              #   LAP Prioritized Experience Replay
+│       │       └── logger.py             #   TensorBoard + JSON 로거
 │       └── deploy/
-│           ├── export_policy.py                 # ONNX / TorchScript 내보내기
-│           ├── test_policy.py                   # 로컬 정책 테스트
-│           └── ros2_node_template.py            # ROS2 배포 노드 템플릿
+│           ├── export_policy.py           #   ONNX / TorchScript 내보내기
+│           ├── test_policy.py
+│           └── ros2_node_template.py
+│
+├── apps/
+│   ├── isaaclab.python.kit                # Isaac Lab GUI 실행 구성
+│   └── isaaclab.python.headless.kit       # Isaac Lab 헤드리스 실행 구성
 │
 └── ros2/
-    ├── autodrive_interfaces/                    # [ROS2 패키지 1] 커스텀 인터페이스
-    │   ├── CMakeLists.txt
-    │   ├── package.xml
+    ├── autodrive_interfaces/              # [ROS2 패키지 1] 커스텀 인터페이스
     │   ├── srv/
-    │   │   ├── GetAction.srv                    # float32[] state → float32[] action
-    │   │   ├── LoadPolicy.srv                   # string model_path → bool success
-    │   │   ├── SetTrack.srv                     # string track_name → bool success
-    │   │   └── GetStatus.srv                    # () → string mode, int32 episode, int32 steps
+    │   │   ├── GetAction.srv              #   float32[] state → float32[] action
+    │   │   ├── LoadPolicy.srv             #   string model_path → bool success
+    │   │   └── GetStatus.srv
     │   └── action/
-    │       └── RunEpisode.action                # goal: mode / feedback: step,reward / result: total_reward
+    │       └── RunEpisode.action
     │
-    └── isaaclab_ros2_bridge/                    # [ROS2 패키지 2] 실로봇 배포 브리지
-        ├── CMakeLists.txt
-        ├── package.xml
+    └── isaaclab_ros2_bridge/              # [ROS2 패키지 2] 실로봇 배포 브리지
         ├── launch/
-        │   ├── deploy_hunter.launch.py          # 실로봇 배포 런치
-        │   └── sim_validate.launch.py           # 시뮬-실환경 검증
+        │   └── deploy_hunter.launch.py
         ├── config/
-        │   ├── policy.yaml                      # 정책 파일 경로 및 입출력 설정
-        │   └── robot.yaml                       # 로봇 토픽 매핑 (/odom, /scan, /cmd_vel)
+        │   ├── policy.yaml                #   정책 파일 경로 및 입출력 설정
+        │   └── robot.yaml                 #   토픽 매핑 (/odom, /scan, /cmd_vel)
         └── isaaclab_ros2_bridge/
-            ├── __init__.py
-            ├── policy_node.py                   # ONNX 정책 로드 → /cmd_vel 발행
-            ├── state_processor.py               # /odom + /scan → 7D 상태 변환
-            └── action_converter.py              # 2D 액션 → Hunter Ackermann 조향/속도 변환
+            ├── policy_node.py             #   ONNX 정책 → /cmd_vel 발행
+            ├── state_processor.py         #   /scan → 80-sector LiDAR 상태
+            └── action_converter.py        #   2D 액션 → Ackermann 조향/속도
 ```
 
 ---
 
-## 관측/행동 공간
+## 관측 / 행동 공간
 
 | 항목 | 차원 | 내용 |
 |---|---|---|
-| 관측 (obs) | 7D | `x, y, crosstrack_error, heading_error, roll, yaw, linear_velocity` |
-| 행동 (act) | 2D | `velocity [-1, 1] m/s`, `steering_angle [-0.524, 0.524] rad` |
-| 조향 변환 | Ackermann | `delta_in / delta_out` 좌우 독립 조향각 계산 |
+| 관측 (obs) | 82D | LiDAR 80 sector (min-pooling) + `[goal_dist, goal_angle]` |
+| 행동 (act) | 2D | `linear_vel [-1, 1]`, `angular_vel [-1, 1]` |
+| LiDAR 범위 | 5.0 m | 360° / 80 sector 균등 분할 |
+| 맵 크기 | 16 × 16 m | 벽 + 랜덤 원통 장애물 N개 |
 
 ---
 
 ## 보상 함수
 
 ```
-total_reward = exp(-crosstrack_error/5.0) × exp(-heading_error/π) × (0.1 × velocity/3.0)
-종료 조건: crosstrack_error ≥ 5.0m  또는  velocity ≤ 0.01 m/s
+r_step = goal_progress(Δdist) × k_p          # 목표 접근 보상 (dense)
+       + goal_reached × R_goal                # 목표 도달 보상 (sparse, +100)
+       + collision × P_col                    # 충돌 페널티 (sparse, -10)
+       + obstacle_proximity(min_lidar)        # 근접 페널티 (zone-based, smooth)
+       + time_penalty                         # 생존 비용 (-0.01/step)
+
+종료 조건:
+  - goal_dist < 0.3 m               → goal reached
+  - min_lidar_dist < 0.3 m          → collision
+  - episode_steps >= max_steps       → timeout
 ```
 
 ---
@@ -210,239 +187,104 @@ total_reward = exp(-crosstrack_error/5.0) × exp(-heading_error/π) × (0.1 × v
 
 | 알고리즘 | 유형 | 특징 |
 |---|---|---|
-| PPO (RSL-RL) | On-policy | 빠른 학습, 4096 병렬 환경 활용 |
-| TQC | Off-policy | Quantile 분산 RL, 안정적 수렴 |
+| TQC | Off-policy | Quantile 분산 RL, 안정적 수렴 — **주력** |
 | TD7 | Off-policy | LAP 우선순위 버퍼, 고성능 |
 | SAC | Off-policy | 엔트로피 정규화, 탐색 효율 우수 |
-
----
-
-## 트랙 데이터
-
-| 트랙 | 파일 | 특징 |
-|---|---|---|
-| Austin | `austin_centerline2.csv` | 기본 학습용 |
-| Brands Hatch | `brandshatch_centerline.csv` | 코너링 집중 |
-| Silverstone | `silverstone_centerline.csv` | 고속 주행 |
-
----
-
-## 이식 출처
-
-| 이식 대상 | 원본 출처 |
-|---|---|
-| `assets/robots/hunter.py` | `Hybrid_DRL_Deployments/.../hunter.py` |
-| `utils/cubic_spline.py` | `Hybrid_DRL_Deployments/.../CubicSpline.py` |
-| `utils/lqr_controller.py` | `Hybrid_DRL_Deployments/.../LQRController.py` |
-| `utils/angle.py` | `Hybrid_DRL_Deployments/.../angle.py` |
-| `algorithms/tqc/tqc_agent.py` | `drl_agent/scripts/policy/tqc_agent.py` |
-| `algorithms/td7/td7_agent.py` | `drl_agent/scripts/policy/td7_agent.py` |
-| `algorithms/common/buffer.py` | `drl_agent/scripts/utils/buffer.py` |
-| `ros2/autodrive_interfaces/` | `drl_agent_interfaces/` (확장) |
-| `ros2/.../state_processor.py` | `drl_agent/scripts/environment/environment.py` (참고) |
-
----
-
-## 개발 단계
-
-### Phase 1 — 기반 구축
-- [x] `isaaclab_autodrive` 패키지 생성 및 `pip install -e` 등록
-- [x] `hunter.py` 이식 (USD 경로: `hunter_aim4.usd`)
-- [x] `cubic_spline.py`, `lqr_controller.py`, `angle.py` 이식
-- [x] 트랙 CSV 복사 (`waypoints/`) — Austin 4145개 경로점 확인
-- [x] 기본 임포트 테스트 통과
-
-### Phase 2 — 기본 태스크 구현
-- [x] `path_tracking_env.py` 구현 (`hunter_hybrid_env.py` 리팩토링)
-- [x] RSL-RL PPO로 Austin 트랙 학습 확인
-- [x] `rough_terrain_tracking` 태스크 추가
-- [x] TensorBoard 로그 및 체크포인트 확인
-
-### Phase 3 — 알고리즘 확장 ✅ 완료 (2026-03-16)
-- [x] TQC 알고리즘 Isaac Lab 환경 연동
-  - `tqc_agent.py`: Actor (Gaussian) + Quantile Critic, 자동 엔트로피 조정, top-quantile dropping
-  - `tqc_trainer.py`: 병렬 환경(num_envs) 배치 처리, 웜업·평가·체크포인트 루프
-  - `networks.py`: 2-layer MLP Actor, QuantileCritic (n_critics × n_quantiles)
-  - `path_tracking` 태스크: `tqc_cfg.yaml` (n_critics=5, n_quantiles=25, 1M steps)
-- [x] TD7 알고리즘 연동
-  - `td7_agent.py`: SALE 인코더, 체크포인팅, 성능 회귀 복원(>20% 하락 시 자동 롤백)
-  - `td7_trainer.py`: Isaac Lab 환경 연동, LAP max_priority 주기적 리셋
-  - `path_tracking` 태스크: `td7_cfg.yaml` (LAP PER 기본 활성화, 40K 체크포인트)
-- [x] LAP PER 버퍼 연동
-  - `common/buffer.py`: Latent Action Priority PER, `prioritized` 플래그로 ON/OFF
-  - TQC(선택적) · TD7(기본 활성) 모두 연동 완료
-- [x] PPO vs TQC vs TD7 성능 비교
-  - `benchmark.py`: 세 알고리즘 체크포인트 일괄 평가, mean/std/min/max 리포트 + JSON 저장
-- [x] `common/logger.py`: TensorBoard + JSON 이중 로깅
-
-> **미비 사항:** `rough_terrain_tracking` 태스크에는 PPO 설정만 존재 (TQC/TD7 YAML 미생성)
-
-### Phase 4 — 하이브리드 제어 및 일반화
-- [ ] `hybrid_control` 태스크: LQR + RL 결합 (디렉터리 스켈레톤만 존재)
-- [ ] `multi_track` 태스크: 3개 트랙 랜덤 전환 (디렉터리 스켈레톤만 존재)
-- [ ] `rough_terrain_tracking` TQC/TD7 에이전트 설정 추가
-- [ ] 도메인 랜덤화 추가 (마찰, 센서 노이즈)
-
-### Phase 5 — 실로봇 배포
-- [ ] ONNX 정책 내보내기 (`export_policy.py`)
-- [ ] `autodrive_interfaces` ROS2 패키지 생성
-- [ ] `isaaclab_ros2_bridge` 노드 구현
-- [ ] 실로봇 테스트 및 Sim-to-Real 갭 분석
+| PPO (RSL-RL) | On-policy | 빠른 학습, 대규모 병렬 환경 |
 
 ---
 
 ## 패키지 설치
 
 ```bash
-# Isaac Lab 패키지 설치 (의존성)
+# Isaac Lab 의존성 설치
 cd /workspace/isaaclab
 ./isaaclab.sh -i
 
 # 커스텀 패키지 설치
 cd /workspace/hunter_autodrive
-./isaaclab.sh -p -m pip install -e source/isaaclab_autodrive
-./isaaclab.sh -p -m pip install -e source/isaaclab_autodrive_tasks
+/workspace/isaaclab/isaaclab.sh -p -m pip install -e source/isaaclab_autodrive
+/workspace/isaaclab/isaaclab.sh -p -m pip install -e source/isaaclab_autodrive_tasks
 ```
+
+---
+
+## 로봇 물리 검증
+
+```bash
+# 로봇 스폰 확인 (관절 구조 출력)
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/spawn_hunter_se.py
+
+# Ackermann 수동 주행 검증 (직진 → 좌회전 → 직진 → 우회전 → 정지)
+/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/drive_hunter_se.py --headless
+```
+
+---
 
 ## 학습 실행
 
 > 모든 명령은 `/workspace/hunter_autodrive/` 디렉터리에서 실행합니다.
 
-### PPO 학습 (`train.py`)
-
-```bash
-# 기본 학습 (4096 환경, 헤드리스)
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
-    --task Isaac-PathTracking-Hunter-v0 \
-    --num_envs 4096 --headless
-
-# 트랙 선택 (austin / brandshatch / silverstone)
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
-    --task Isaac-PathTracking-Hunter-v0 \
-    --num_envs 4096 --track brandshatch --headless
-
-# 소규모 디버그
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
-    --task Isaac-PathTracking-Hunter-v0 \
-    --num_envs 64 --headless
-
-# 비디오 녹화 포함 학습
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train.py \
-    --task Isaac-PathTracking-Hunter-v0 \
-    --num_envs 64 --video --video_length 200 --video_interval 2000
-```
-
-주요 인수:
-
-| 인수 | 기본값 | 설명 |
-|---|---|---|
-| `--task` | `Isaac-PathTracking-Hunter-v0` | 학습 태스크 |
-| `--num_envs` | cfg 기본값 | 병렬 환경 수 |
-| `--max_iterations` | cfg 기본값 | 학습 반복 횟수 |
-| `--track` | `austin` | 트랙 선택 (`austin` / `brandshatch` / `silverstone`) |
-| `--seed` | cfg 기본값 | 랜덤 시드 |
-| `--headless` | `False` | 헤드리스 실행 |
-| `--video` | `False` | 학습 중 비디오 녹화 |
-
-로그 저장 경로: `logs/rsl_rl/{experiment_name}/{timestamp}/`
-
----
-
 ### TQC / TD7 학습 (`train_tqc.py`)
 
 ```bash
-# TQC 학습 (기본값)
+# TQC 학습 (기본)
 /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-    --task Isaac-PathTracking-Hunter-v0 \
+    --task Isaac-LidarNav-Hunter-v0 \
     --algo tqc --num_envs 64 --headless
 
 # TD7 학습 (LAP PER 기본 활성화)
 /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-    --task Isaac-PathTracking-Hunter-v0 \
+    --task Isaac-LidarNav-Hunter-v0 \
     --algo td7 --num_envs 64 --headless
 
-# 트랙 및 커스텀 config 지정
+# 커스텀 config 지정
 /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-    --task Isaac-PathTracking-Hunter-v0 \
-    --algo tqc --track silverstone \
-    --cfg path/to/tqc_cfg.yaml --headless
+    --task Isaac-LidarNav-Hunter-v0 \
+    --algo tqc --cfg source/isaaclab_autodrive_tasks/isaaclab_autodrive_tasks/direct/lidar_nav/agents/tqc_cfg.yaml \
+    --headless
 ```
-
-주요 인수:
 
 | 인수 | 기본값 | 설명 |
 |---|---|---|
-| `--algo` | `tqc` | 알고리즘 선택 (`tqc` / `td7`) |
-| `--task` | `Isaac-PathTracking-Hunter-v0` | 학습 태스크 |
+| `--algo` | `tqc` | 알고리즘 선택 (`tqc` / `td7` / `sac`) |
+| `--task` | — | 학습 태스크 ID |
 | `--num_envs` | cfg 기본값 | 병렬 환경 수 |
-| `--track` | `austin` | 트랙 선택 |
 | `--cfg` | 태스크 내 기본 YAML | 커스텀 config 파일 경로 |
 | `--seed` | cfg 기본값 | 랜덤 시드 |
+| `--headless` | `False` | 헤드리스 실행 |
 
-로그 저장 경로: `logs/{algo}/{experiment_name}/{timestamp}/`
+로그 저장 경로: `logs/{algo}/lidar_nav/{timestamp}/`
 
 ---
 
 ### 시각화 (`play.py`)
 
 ```bash
-# PPO 정책 시각화 (체크포인트 자동 탐색)
 /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/play.py \
-    --task Isaac-PathTracking-Hunter-Play-v0 \
-    --num_envs 16
+    --task Isaac-LidarNav-Hunter-Play-v0 \
+    --num_envs 4
 
-# 체크포인트 직접 지정 + 트랙 선택
+# 체크포인트 직접 지정
 /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/play.py \
-    --task Isaac-PathTracking-Hunter-Play-v0 \
-    --num_envs 16 --track brandshatch \
-    --checkpoint logs/rsl_rl/hunter_path_tracking/2026-.../model_1000.pt
-
-# 비디오 저장
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/play.py \
-    --task Isaac-PathTracking-Hunter-Play-v0 \
-    --num_envs 16 --video --video_length 200
+    --task Isaac-LidarNav-Hunter-Play-v0 \
+    --num_envs 4 \
+    --checkpoint logs/tqc/lidar_nav/.../model_final.pt
 ```
-
-> **주의:** play 태스크는 `Isaac-PathTracking-Hunter-Play-v0` 사용 (train 태스크와 별도)
 
 ---
 
 ### 알고리즘 비교 벤치마크 (`benchmark.py`)
 
 ```bash
-# PPO / TQC / TD7 전체 비교
 /workspace/isaaclab/isaaclab.sh -p scripts/autodrive/benchmark.py \
-    --task Isaac-PathTracking-Hunter-v0 \
-    --ppo_ckpt logs/rsl_rl/hunter_path_tracking/2026-.../model_0.pt \
-    --tqc_ckpt logs/tqc/hunter_path_tracking_tqc/.../model_final.pt \
-    --td7_ckpt logs/td7/hunter_path_tracking_td7/.../model_final.pt \
+    --task Isaac-LidarNav-Hunter-v0 \
+    --tqc_ckpt logs/tqc/lidar_nav/.../model_final.pt \
+    --td7_ckpt logs/td7/lidar_nav/.../model_final.pt \
     --num_envs 16 --eval_episodes 20
-
-# 특정 알고리즘만 평가
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/benchmark.py \
-    --task Isaac-PathTracking-Hunter-v0 \
-    --tqc_ckpt logs/tqc/.../model_final.pt \
-    --num_envs 16
-
-# 결과 JSON 저장 경로 지정
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/benchmark.py \
-    --ppo_ckpt ... --tqc_ckpt ... --td7_ckpt ... \
-    --output outputs/my_benchmark.json
 ```
 
-주요 인수:
-
-| 인수 | 기본값 | 설명 |
-|---|---|---|
-| `--ppo_ckpt` | `None` | PPO 체크포인트 경로 (`.pt`) |
-| `--tqc_ckpt` | `None` | TQC 체크포인트 경로 (`.pt`) |
-| `--td7_ckpt` | `None` | TD7 체크포인트 경로 (`.pt`) |
-| `--eval_episodes` | `20` | 알고리즘당 평가 에피소드 수 |
-| `--max_steps` | `2000` | 에피소드당 최대 스텝 |
-| `--track` | `austin` | 평가 트랙 |
-| `--output` | `outputs/benchmark_{ts}.json` | 결과 JSON 저장 경로 |
-
-결과는 콘솔 테이블(mean/std/min/max) 및 JSON으로 자동 저장됩니다.
+---
 
 ## ROS2 배포
 
@@ -461,3 +303,48 @@ colcon build --packages-select autodrive_interfaces isaaclab_ros2_bridge
 ros2 launch isaaclab_ros2_bridge deploy_hunter.launch.py \
     policy_path:=/path/to/policy.onnx
 ```
+
+---
+
+## 개발 단계
+
+### Phase 1 — 기반 구축 ✅ 완료
+- [x] `isaaclab_autodrive` 패키지 생성 및 `pip install -e` 등록
+- [x] `hunter_se/` USD 물리 모델 구축 및 검증 (Physics.usda, hunter_se_cfg.py)
+  - fr_left_joint 비대칭(localRot1 부호 반전) 수정 → 직진 좌편향 해결
+  - 전륜 자유회전 damping 15 → 0.5 (진동 해결)
+  - solver_velocity_iteration_count 16 → 4 (TGS 안정화)
+- [x] `drive_hunter_se.py` 수동 주행 검증 (Ackermann, 시간 계산 수정)
+- [x] 알고리즘 코어 이식: TQC / TD7 / SAC / buffer(LAP PER) / logger
+
+### Phase 2 — path tracking 계열 구현 ✅ 완료 (legacy 보존)
+- [x] `path_tracking_env.py` (crosstrack error 기반) → `legacy/`로 격리
+- [x] `rough_terrain_tracking`, `hybrid_control`, `multi_track` 스켈레톤 → `legacy/`
+- [x] RSL-RL PPO / TQC / TD7 연동 완료
+
+### Phase 3 — LiDAR 자율주행 태스크 구성 🔄 진행 중
+- [ ] **Phase A.** legacy 격리: path_tracking 계열 → `direct/legacy/`
+- [ ] **Phase B.** `lidar_nav/` 골격 생성 (dummy obs로 환경 루프 동작 확인)
+- [ ] **Phase C.** MVP 검증: LiDAR sensor + goal/obstacle 스폰 + reward/termination
+- [ ] **Phase D.** TQC 학습 연결 (`Isaac-LidarNav-Hunter-v0`)
+- [ ] **Phase E.** 논문 환경 재현 (80-sector, 16×16 맵, 랜덤화 완성)
+
+### Phase 4 — 실로봇 배포
+- [ ] ONNX 정책 내보내기 (`export_policy.py`)
+- [ ] `isaaclab_ros2_bridge` 노드: `/scan` → 80-sector 상태 변환 → `/cmd_vel`
+- [ ] Sim-to-Real 갭 분석
+
+---
+
+## 이식 출처
+
+| 이식 대상 | 원본 출처 |
+|---|---|
+| `hunter_se/` | URDF → USD 변환 + 물리 파라미터 직접 수정 |
+| `assets/robots/hunter.py` | `Hybrid_DRL_Deployments/.../hunter.py` (USD 경로 교체) |
+| `algorithms/tqc/tqc_agent.py` | `drl_agent/scripts/policy/tqc_agent.py` |
+| `algorithms/td7/td7_agent.py` | `drl_agent/scripts/policy/td7_agent.py` |
+| `algorithms/common/buffer.py` | `drl_agent/scripts/utils/buffer.py` (LAP PER) |
+| `ros2/autodrive_interfaces/` | `drl_agent_interfaces/` (확장) |
+| `ros2/.../state_processor.py` | `drl_agent/scripts/environment/environment.py` (참고) |
+| `utils/angle.py` | `Hybrid_DRL_Deployments/.../angle.py` |
