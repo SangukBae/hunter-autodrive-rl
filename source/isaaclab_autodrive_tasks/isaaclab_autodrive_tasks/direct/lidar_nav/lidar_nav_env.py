@@ -72,6 +72,9 @@ class LidarNavEnv(DirectRLEnv):
         self._wheel_l_idx, _ = self.robot.find_joints("re_left_joint")
         self._wheel_r_idx, _ = self.robot.find_joints("re_right_joint")
 
+        # 이전 스텝 조향각 (rate limiting용)
+        self._prev_delta = torch.zeros(self.num_envs, device=self.device)
+
         # 목표 위치 버퍼 (월드 좌표 XY)
         self._goal_pos = torch.zeros(self.num_envs, 2, device=self.device)
 
@@ -170,35 +173,20 @@ class LidarNavEnv(DirectRLEnv):
             ),
         )
 
-        num_envs = self.scene.cfg.num_envs
-        for env_idx in range(num_envs):
-            ox, oy = (
-                self.scene.env_origins[env_idx, 0].item(),
-                self.scene.env_origins[env_idx, 1].item(),
-            )
-            z = h / 2.0
-            base = f"/World/envs/env_{env_idx}"
+        # copy_from_source=False 이므로 env_1+ 는 env_0 을 미러링한다.
+        # env_0 에만 스폰하면 나머지 env 에도 자동으로 반영된다.
+        # 로컬 좌표계(env_0 원점 기준) 사용 → 각 env 의 world transform 이 올바른 위치를 만든다.
+        z = h / 2.0
+        base = "/World/envs/env_0"
 
-            # North (y = +m)
-            wall_cfg_ns.func(
-                f"{base}/Wall_N", wall_cfg_ns,
-                translation=(ox, oy + m + t / 2, z)
-            )
-            # South (y = -m)
-            wall_cfg_ns.func(
-                f"{base}/Wall_S", wall_cfg_ns,
-                translation=(ox, oy - m - t / 2, z)
-            )
-            # East (x = +m)
-            wall_cfg_ew.func(
-                f"{base}/Wall_E", wall_cfg_ew,
-                translation=(ox + m + t / 2, oy, z)
-            )
-            # West (x = -m)
-            wall_cfg_ew.func(
-                f"{base}/Wall_W", wall_cfg_ew,
-                translation=(ox - m - t / 2, oy, z)
-            )
+        # North (y = +m)
+        wall_cfg_ns.func(f"{base}/Wall_N", wall_cfg_ns, translation=(0.0, m + t / 2, z))
+        # South (y = -m)
+        wall_cfg_ns.func(f"{base}/Wall_S", wall_cfg_ns, translation=(0.0, -(m + t / 2), z))
+        # East (x = +m)
+        wall_cfg_ew.func(f"{base}/Wall_E", wall_cfg_ew, translation=(m + t / 2, 0.0, z))
+        # West (x = -m)
+        wall_cfg_ew.func(f"{base}/Wall_W", wall_cfg_ew, translation=(-(m + t / 2), 0.0, z))
 
     # ─────────────────────────────────────────────────────────────────────────
     # 행동 전처리
@@ -211,20 +199,28 @@ class LidarNavEnv(DirectRLEnv):
         # linear_vel: [-1, 1] → [0, max_linear_vel]  (전진 전용)
         lin_vel = (actions[:, 0] + 1.0) / 2.0 * self.cfg.max_linear_vel
 
-        # angular_vel: [-1, 1] → [-max_angular_vel, max_angular_vel]
-        ang_vel = actions[:, 1] * self.cfg.max_angular_vel
+        # action[1]: [-1, 1] → 차체 중심 조향각 delta [-MAX_STEER, MAX_STEER]
+        # (ang_vel = v·tan(delta)/L 특이점 제거: 조향각을 직접 제어)
+        delta_target = actions[:, 1] * _MAX_STEER
+
+        # 조향 변화율 제한: 실제 Hunter SE 조향 속도 ≈ 0.5 rad/s
+        # step_dt = 0.02s → 스텝당 최대 변화 = 0.01 rad
+        _MAX_STEER_RATE = 0.5 * self.step_dt
+        delta = self._prev_delta + torch.clamp(
+            delta_target - self._prev_delta, -_MAX_STEER_RATE, _MAX_STEER_RATE
+        )
+        self._prev_delta = delta.detach()
+
+        # Ackermann: 요레이트 = v · tan(delta) / L → 후륜 차동 각속도
+        tan_delta = torch.tan(delta)
+        ang_vel = lin_vel * tan_delta / _WHEELBASE   # [rad/s]
 
         # 차동 구동 역기구학 → 후륜 각속도
         half_track = _REAR_TRACK / 2.0
         self._omega_l = (lin_vel - ang_vel * half_track) / _WHEEL_RADIUS
         self._omega_r = (lin_vel + ang_vel * half_track) / _WHEEL_RADIUS
 
-        # Ackermann 조향각
-        safe_lin = torch.where(lin_vel.abs() < 1e-3, torch.ones_like(lin_vel) * 1e-3, lin_vel)
-        delta = torch.atan(_WHEELBASE * ang_vel / safe_lin)
-        delta = torch.clamp(delta, -_MAX_STEER, _MAX_STEER)
-
-        tan_delta = torch.tan(delta)
+        # Ackermann 좌/우 독립 조향각
         L  = _WHEELBASE
         tw = _REAR_TRACK
 
@@ -412,6 +408,9 @@ class LidarNavEnv(DirectRLEnv):
                 new_state[:, 7:] = 0.0
                 obs_obj.write_root_pose_to_sim(new_state[:, :7], env_ids)
                 obs_obj.write_root_velocity_to_sim(new_state[:, 7:], env_ids)
+
+        # ── 조향 rate limiter 초기화 ──────────────────────────────────────────
+        self._prev_delta[env_ids] = 0.0
 
         # ── prev_goal_dist 초기화 ─────────────────────────────────────────────
         ddx = self._goal_pos[env_ids, 0] - self.robot.data.root_pos_w[env_ids, 0]
