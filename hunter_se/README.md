@@ -1,6 +1,6 @@
-# Hunter SE Asset README
+# hunter_se — 로봇 에셋
 
-이 폴더는 Hunter SE 로봇의 Isaac Lab용 USD 자산과 Python 설정을 담고 있다. 원본은 URDF 기반이며 `urdf-usd-converter v0.1.0`으로 변환된 뒤, Isaac Lab에서 바로 사용할 수 있도록 `ArticulationCfg`가 추가되어 있다.
+Hunter SE 모바일 로봇의 USD 3D 모델과 Isaac Lab `ArticulationCfg`를 담고 있습니다. 원본은 URDF 기반이며 `urdf-usd-converter v0.1.0`으로 변환된 후 Isaac Lab 연동을 위해 물리 파라미터가 수동으로 조정되었습니다.
 
 ## 1. 폴더 구성
 
