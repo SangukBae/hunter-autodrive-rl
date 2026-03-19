@@ -135,7 +135,7 @@ def Xform "hunter_se_description"
                     prepend apiSchemas = ["MaterialBindingAPI"]
                 )
                 {
-                    rel material:binding = </hunter_se_description/Materials/material_7>
+                    rel material:binding = </hunter_se_description/Materials/material_6>
                 }
             }
 

@@ -32,6 +32,18 @@ Hunter SE 제원 (URDF + PDF 매뉴얼 기준):
     전륜 자유회전 (front_wheels actuator, 마찰=15):
         fr_left_joint   — 전륜 좌 자유회전
         fr_right_joint  — 전륜 우 자유회전
+
+액추에이터 모델 (WheeledLab MuSHR 방식 적용):
+    후륜 구동  : DCMotorCfg — 토크-속도 포화 커브 모델링
+    전륜 조향  : ImplicitActuatorCfg — 저강성 서보 (MuSHR 스케일 적용)
+
+바퀴 충돌 근사:
+    boundingSphere → convexHull (Physics.usda 변경)
+    — 바퀴 형상을 구(球)에서 볼록 껍질로 개선, 지면 접지 정확도 향상
+
+접지 충격 제한:
+    max_contact_impulse=0.0 (PhysX 기본 = 무제한)
+    — MuSHR과 동일하게 설정하여 접지 충격 클램핑 해제
 """
 
 from __future__ import annotations
@@ -39,7 +51,7 @@ from __future__ import annotations
 import os
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
 
 ##
@@ -61,47 +73,58 @@ HUNTER_SE_CFG = ArticulationCfg(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=1.0,
+            max_contact_impulse=0.0,       # MuSHR 방식: 접지 충격 클램핑 해제
             enable_gyroscopic_forces=True,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
             solver_position_iteration_count=32,
-            solver_velocity_iteration_count=4,
+            solver_velocity_iteration_count=8,
             sleep_threshold=0.005,
             stabilization_threshold=0.001,
         ),
         copy_from_source=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.3),  # 지형 위 안전 높이
+        pos=(0.0, 0.0, 0.287),  # 후륜축 z=-0.158 + 바퀴반지름 0.129 = 정지 높이
     ),
     actuators={
-        # 후륜 속도 제어 — stiffness=0 (velocity mode)
-        # hunter_aim4 참고: damping=17453, maxForce=inf
-        "wheels": ImplicitActuatorCfg(
+        # ── 후륜 구동 — DCMotorCfg (MuSHR throttle 방식) ─────────────────────
+        # torque-speed 포화 커브: τ_eff = clip(kd·Δω, ±τ_sat) × (1 − |ω|/ω_max)
+        # Hunter SE 추정치:
+        #   τ_sat = 30 N·m  (후륜 1개당 정지 토크, 42 kg 기준)
+        #   ω_max = 12 rad/s (> 운전 최대 10.33 rad/s)
+        #   damping = 30  → 정상상태 속도 오차 ≈ 3% (안정 한계 ~70 N·m·s/rad의 43%)
+        #   전체 로봇 유효 관성: I_eff = r²·m = 0.129²·42 = 0.699 kg·m²
+        #   50Hz 제어 안정 한계: kd < 2·I_eff/STEP_DT = 2·0.699/0.02 ≈ 70
+        "wheels": DCMotorCfg(
             joint_names_expr=["re_left_joint", "re_right_joint"],
+            saturation_effort=30.0,
+            effort_limit=15.0,
+            velocity_limit=12.0,
             stiffness=0.0,
-            damping=17453.0,
+            damping=30.0,
+            friction=0.0,
         ),
-        # 전륜 조향 위치 제어 — ±22° (0.384 rad) 제한
-        # hunter_aim4 참고: stiffness=10M, damping=100K, maxForce=6000
+        # ── 전륜 조향 — ImplicitActuatorCfg 저강성 (MuSHR steering 방식) ──────
+        # MuSHR: stiffness=100, damping=10, effort_limit=3.2
+        # Hunter SE: 42 kg / ~5 kg ≈ 8.4× 스케일
+        #   stiffness=500, damping=50, effort_limit=50
+        # → 강체 잠금(1e7) 대신 실제 서보 모터의 유연성 반영
         "steering": ImplicitActuatorCfg(
             joint_names_expr=["fr_steer_left_joint", "fr_steer_right_joint"],
-            stiffness=1e7,
-            damping=1e5,
-            effort_limit_sim=6000.0,
+            stiffness=500.0,
+            damping=50.0,
+            effort_limit_sim=50.0,
         ),
-        # 가상 조향/후륜축 — 고강성으로 잠금
+        # ── 가상 조향/후륜축 — 고강성으로 잠금 (변경 없음) ───────────────────
         "virtual_joints": ImplicitActuatorCfg(
             joint_names_expr=["front_steer_joint", "rear_wheel_joint"],
             stiffness=1e7,
             damping=1e5,
             effort_limit_sim=1e6,
         ),
-        # 전륜 자유회전 — DOF축이 구름 방향이므로 stiffness=0 필수
-        # damping=15 원본값은 URDF friction=15(쿨롱)가 점성으로 잘못 변환된 것
-        # → 7.75 rad/s에서 116 Nm 제동(법력 82 N 대비 900 N 필요) = 사실상 브레이크
-        # damping=0.5로 수정: 베어링 마찰 수준 (≈ 4 Nm @ 7.75 rad/s)
+        # ── 전륜 자유회전 — 베어링 마찰 수준 (변경 없음) ─────────────────────
         "front_wheels": ImplicitActuatorCfg(
             joint_names_expr=["fr_left_joint", "fr_right_joint"],
             stiffness=0.0,

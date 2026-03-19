@@ -3,47 +3,61 @@
     customLayerData = {
         string creator = "URDF USD Converter v0.1.0"
     }
-    defaultPrim = "hunter_se_description"
+    defaultPrim = "hunter_se_autodrive_description"
     kilogramsPerUnit = 1
     metersPerUnit = 1
     upAxis = "Z"
 )
 
-def Xform "hunter_se_description"
+# 메시 출처: AutoDRIVE-Simulator-0.3.0/Assets/Models/Vehicle/Hunter SE/Hunter SE.fbx
+# 원본 FBX가 단일 파일로 구성되어 있어 USD 프리미티브(Box/Cylinder)로 대체.
+# base_link  — Cube    (0.55 × 0.45 × 0.20 m 스케일)
+# 바퀴       — Cylinder (radius=0.082 m, height=0.060 m)
+# 가상 링크  — Cylinder (tiny, 기존 파일과 동일)
+
+def Xform "hunter_se_autodrive_description"
 {
     def Scope "Geometry"
     {
         def Xform "base_link"
         {
-            def Mesh "base_link" (
-                prepend references = @./GeometryLibrary.usdc@</Geometry/base_link>
-            )
-            {
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Mesh "base_link_1" (
+            # ── 차체 시각 메시 ───────────────────────────────────────────
+            def Cube "base_link" (
                 displayName = "base_link"
-                prepend references = @./GeometryLibrary.usdc@</Geometry/base_link>
             )
             {
-                uniform token purpose = "guide"
+                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                double size = 1
+                # 0.55(fwd) × 0.45(lat) × 0.20(ht), 무게중심 위로 약간 올림
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0, 0, 0)
+                float3 xformOp:scale = (0.55, 0.45, 0.20)
+                double3 xformOp:translate = (0, 0, 0.06)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            # ── 차체 충돌 메시 (guide purpose) ──────────────────────────
+            def Cube "base_link_collision" (
+                displayName = "base_link"
+            )
+            {
+                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                uniform token purpose = "guide"
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.55, 0.45, 0.20)
+                double3 xformOp:translate = (0, 0, 0.06)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            # ── 전륜 좌 조향 허브 ────────────────────────────────────────
             def Xform "fr_steer_left_link"
             {
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0.34058, 0.24619, -0.1535)
+                double3 xformOp:translate = (0.275, 0.260, -0.100)
                 uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
+                # 조향 허브: 1mm 큐브 (사실상 보이지 않음, 기존과 동일)
                 def Cube "box"
                 {
                     float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
@@ -67,30 +81,37 @@ def Xform "hunter_se_description"
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                 }
 
+                # 전륜 좌 바퀴: Cylinder radius=0.082, height=0.060, axis=Y
                 def Xform "fr_left_link"
                 {
-                    quatf xformOp:orient = (0.70710546, 0.7071081, 0, 0)
+                    # 90° around X: Z-spin axis → Y-spin axis (바퀴 회전축)
+                    quatf xformOp:orient = (0.70708, 0.7070826, 0.0060018613, 0.0060018394)
                     float3 xformOp:scale = (1, 1, 1)
                     double3 xformOp:translate = (0, 0, 0)
                     uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                    def Mesh "fr_left_link" (
-                        prepend references = @./GeometryLibrary.usdc@</Geometry/fr_right_link>
-                    )
+                    def Cylinder "fr_left_link"
                     {
-                        quatf xformOp:orient = (0, 1, 0, 0)
+                        uniform token axis = "Z"
+                        float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                        double height = 0.060
+                        double radius = 0.082
+                        quatf xformOp:orient = (1, 0, 0, 0)
                         float3 xformOp:scale = (1, 1, 1)
                         double3 xformOp:translate = (0, 0, 0)
                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                     }
 
-                    def Mesh "fr_left_link_1" (
+                    def Cylinder "fr_left_link_collision" (
                         displayName = "fr_left_link"
-                        prepend references = @./GeometryLibrary.usdc@</Geometry/re_left_link>
                     )
                     {
+                        uniform token axis = "Z"
+                        float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                        double height = 0.060
                         uniform token purpose = "guide"
-                        quatf xformOp:orient = (0, 1, 0, 0)
+                        double radius = 0.082
+                        quatf xformOp:orient = (1, 0, 0, 0)
                         float3 xformOp:scale = (1, 1, 1)
                         double3 xformOp:translate = (0, 0, 0)
                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
@@ -98,11 +119,12 @@ def Xform "hunter_se_description"
                 }
             }
 
+            # ── 전륜 우 조향 허브 ────────────────────────────────────────
             def Xform "fr_steer_right_link"
             {
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0.34058, -0.24619, -0.1535)
+                double3 xformOp:translate = (0.275, -0.260, -0.100)
                 uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
                 def Cube "box"
@@ -128,6 +150,7 @@ def Xform "hunter_se_description"
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                 }
 
+                # 전륜 우 바퀴
                 def Xform "fr_right_link"
                 {
                     quatf xformOp:orient = (-0.70710546, 0.7071081, 0, 0)
@@ -135,22 +158,27 @@ def Xform "hunter_se_description"
                     double3 xformOp:translate = (0, 0, 0)
                     uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                    def Mesh "fr_right_link" (
-                        prepend references = @./GeometryLibrary.usdc@</Geometry/fr_right_link>
-                    )
+                    def Cylinder "fr_right_link"
                     {
+                        uniform token axis = "Z"
+                        float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                        double height = 0.060
+                        double radius = 0.082
                         quatf xformOp:orient = (1, 0, 0, 0)
                         float3 xformOp:scale = (1, 1, 1)
                         double3 xformOp:translate = (0, 0, 0)
                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                     }
 
-                    def Mesh "fr_right_link_1" (
+                    def Cylinder "fr_right_link_collision" (
                         displayName = "fr_right_link"
-                        prepend references = @./GeometryLibrary.usdc@</Geometry/fr_right_link>
                     )
                     {
+                        uniform token axis = "Z"
+                        float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                        double height = 0.060
                         uniform token purpose = "guide"
+                        double radius = 0.082
                         quatf xformOp:orient = (1, 0, 0, 0)
                         float3 xformOp:scale = (1, 1, 1)
                         double3 xformOp:translate = (0, 0, 0)
@@ -159,29 +187,35 @@ def Xform "hunter_se_description"
                 }
             }
 
+            # ── 후륜 좌 ──────────────────────────────────────────────────
             def Xform "re_left_link"
             {
                 quatf xformOp:orient = (0.70710546, 0.7071081, 0, 0)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (-0.2078, 0.252, -0.158)
+                double3 xformOp:translate = (-0.275, 0.260, -0.100)
                 uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                def Mesh "re_left_link" (
-                    prepend references = @./GeometryLibrary.usdc@</Geometry/re_left_link>
-                )
+                def Cylinder "re_left_link"
                 {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                    double height = 0.060
+                    double radius = 0.082
                     quatf xformOp:orient = (1, 0, 0, 0)
                     float3 xformOp:scale = (1, 1, 1)
                     double3 xformOp:translate = (0, 0, 0)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                 }
 
-                def Mesh "re_left_link_1" (
+                def Cylinder "re_left_link_collision" (
                     displayName = "re_left_link"
-                    prepend references = @./GeometryLibrary.usdc@</Geometry/re_left_link>
                 )
                 {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                    double height = 0.060
                     uniform token purpose = "guide"
+                    double radius = 0.082
                     quatf xformOp:orient = (1, 0, 0, 0)
                     float3 xformOp:scale = (1, 1, 1)
                     double3 xformOp:translate = (0, 0, 0)
@@ -189,29 +223,35 @@ def Xform "hunter_se_description"
                 }
             }
 
+            # ── 후륜 우 ──────────────────────────────────────────────────
             def Xform "re_right_link"
             {
                 quatf xformOp:orient = (-0.70710546, 0.7071081, 0, 0)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (-0.2078, -0.252, -0.158)
+                double3 xformOp:translate = (-0.275, -0.260, -0.100)
                 uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                def Mesh "re_right_link" (
-                    prepend references = @./GeometryLibrary.usdc@</Geometry/re_left_link>
-                )
+                def Cylinder "re_right_link"
                 {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                    double height = 0.060
+                    double radius = 0.082
                     quatf xformOp:orient = (1, 0, 0, 0)
                     float3 xformOp:scale = (1, 1, 1)
                     double3 xformOp:translate = (0, 0, 0)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                 }
 
-                def Mesh "re_right_link_1" (
+                def Cylinder "re_right_link_collision" (
                     displayName = "re_right_link"
-                    prepend references = @./GeometryLibrary.usdc@</Geometry/re_right_link>
                 )
                 {
+                    uniform token axis = "Z"
+                    float3[] extent = [(-0.082, -0.082, -0.030), (0.082, 0.082, 0.030)]
+                    double height = 0.060
                     uniform token purpose = "guide"
+                    double radius = 0.082
                     quatf xformOp:orient = (1, 0, 0, 0)
                     float3 xformOp:scale = (1, 1, 1)
                     double3 xformOp:translate = (0, 0, 0)
@@ -219,11 +259,12 @@ def Xform "hunter_se_description"
                 }
             }
 
+            # ── 가상 링크 (기존과 동일한 작은 Cylinder) ──────────────────
             def Xform "front_steer_link"
             {
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0.40792, -0.000011431, -0.085581)
+                double3 xformOp:translate = (0.275, 0.0, -0.054)
                 uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
                 def Cylinder "cylinder"
@@ -258,7 +299,7 @@ def Xform "hunter_se_description"
             {
                 quatf xformOp:orient = (0.9999987, 0.0016194452, 0, 0)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (-0.30408, -0.000011431, -0.085581)
+                double3 xformOp:translate = (-0.275, 0.0, -0.054)
                 uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
                 def Cylinder "cylinder"
@@ -286,216 +327,6 @@ def Xform "hunter_se_description"
                     float3 xformOp:scale = (1, 1, 1)
                     double3 xformOp:translate = (0, 0, 0)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-                }
-            }
-        }
-
-        def Scope "custom"
-        {
-            def Scope "gazebo"
-            {
-                custom string urdf:reference = "fr_left_link"
-
-                def Scope "mu1"
-                {
-                    custom string urdf:text = "0.8"
-                }
-
-                def Scope "mu2"
-                {
-                    custom string urdf:text = "0.8"
-                }
-
-                def Scope "kp"
-                {
-                    custom string urdf:text = "500000.0"
-                }
-
-                def Scope "kd"
-                {
-                    custom string urdf:text = "10.0"
-                }
-
-                def Scope "minDepth"
-                {
-                    custom string urdf:text = "0.001"
-                }
-
-                def Scope "maxVel"
-                {
-                    custom string urdf:text = "0.1"
-                }
-
-                def Scope "fdir1"
-                {
-                    custom string urdf:text = "1 0 0"
-                }
-
-                def Scope "material"
-                {
-                    custom string urdf:text = "Gazebo/Grey"
-                }
-            }
-
-            def Scope "gazebo_1" (
-                displayName = "gazebo"
-            )
-            {
-                custom string urdf:reference = "fr_right_link"
-
-                def Scope "mu1"
-                {
-                    custom string urdf:text = "0.8"
-                }
-
-                def Scope "mu2"
-                {
-                    custom string urdf:text = "0.8"
-                }
-
-                def Scope "kp"
-                {
-                    custom string urdf:text = "500000.0"
-                }
-
-                def Scope "kd"
-                {
-                    custom string urdf:text = "10.0"
-                }
-
-                def Scope "minDepth"
-                {
-                    custom string urdf:text = "0.001"
-                }
-
-                def Scope "maxVel"
-                {
-                    custom string urdf:text = "0.1"
-                }
-
-                def Scope "fdir1"
-                {
-                    custom string urdf:text = "1 0 0"
-                }
-
-                def Scope "material"
-                {
-                    custom string urdf:text = "Gazebo/Grey"
-                }
-            }
-
-            def Scope "gazebo_2" (
-                displayName = "gazebo"
-            )
-            {
-                custom string urdf:reference = "re_left_link"
-
-                def Scope "mu1"
-                {
-                    custom string urdf:text = "0.8"
-                }
-
-                def Scope "mu2"
-                {
-                    custom string urdf:text = "10"
-                }
-
-                def Scope "kp"
-                {
-                    custom string urdf:text = "500000.0"
-                }
-
-                def Scope "kd"
-                {
-                    custom string urdf:text = "10.0"
-                }
-
-                def Scope "minDepth"
-                {
-                    custom string urdf:text = "0.001"
-                }
-
-                def Scope "maxVel"
-                {
-                    custom string urdf:text = "0.1"
-                }
-
-                def Scope "fdir1"
-                {
-                    custom string urdf:text = "1 0 0"
-                }
-
-                def Scope "material"
-                {
-                    custom string urdf:text = "Gazebo/Grey"
-                }
-            }
-
-            def Scope "gazebo_3" (
-                displayName = "gazebo"
-            )
-            {
-                custom string urdf:reference = "re_right_link"
-
-                def Scope "mu1"
-                {
-                    custom string urdf:text = "0.8"
-                }
-
-                def Scope "mu2"
-                {
-                    custom string urdf:text = "10"
-                }
-
-                def Scope "kp"
-                {
-                    custom string urdf:text = "500000.0"
-                }
-
-                def Scope "kd"
-                {
-                    custom string urdf:text = "10.0"
-                }
-
-                def Scope "minDepth"
-                {
-                    custom string urdf:text = "0.001"
-                }
-
-                def Scope "maxVel"
-                {
-                    custom string urdf:text = "0.1"
-                }
-
-                def Scope "fdir1"
-                {
-                    custom string urdf:text = "1 0 0"
-                }
-
-                def Scope "material"
-                {
-                    custom string urdf:text = "Gazebo/Grey"
-                }
-            }
-
-            def Scope "gazebo_4" (
-                displayName = "gazebo"
-            )
-            {
-                def Scope "plugin"
-                {
-                    custom string urdf:filename = "libgazebo_ros_control.so"
-                    custom string urdf:name = "gazebo_ros_control"
-
-                    def Scope "robotSimType"
-                    {
-                        custom string urdf:text = "steer_bot_hardware_gazebo/SteerBotHardwareGazebo"
-                    }
-
-                    def Scope "legacyModeNS"
-                    {
-                        custom string urdf:text = "false"
-                    }
                 }
             }
         }

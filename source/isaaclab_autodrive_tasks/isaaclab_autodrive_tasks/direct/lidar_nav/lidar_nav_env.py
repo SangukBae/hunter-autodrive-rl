@@ -41,11 +41,9 @@ from isaaclab.utils.math import euler_xyz_from_quat, quat_from_euler_xyz
 
 from .lidar_nav_env_cfg import LidarNavEnvCfg
 
-# Hunter SE 물리 상수 (drive_hunter_se.py 기준)
-_WHEELBASE    = 0.548   # [m]
-_REAR_TRACK   = 0.504   # [m]
-_WHEEL_RADIUS = 0.129   # [m]
-_MAX_STEER    = 0.384   # [rad]
+import sys
+sys.path.insert(0, "/workspace/hunter_autodrive")
+from hunter_se.ackermann import HunterSEAckermann, MAX_STEER as _MAX_STEER
 
 # 로봇 근사 반경 (충돌 판정용)
 _ROBOT_RADIUS = 0.30    # [m]
@@ -71,6 +69,9 @@ class LidarNavEnv(DirectRLEnv):
         self._steer_r_idx, _ = self.robot.find_joints("fr_steer_right_joint")
         self._wheel_l_idx, _ = self.robot.find_joints("re_left_joint")
         self._wheel_r_idx, _ = self.robot.find_joints("re_right_joint")
+
+        # Ackermann 처리기 (HunterSEAckermann, 중심각 기준)
+        self._ackermann = HunterSEAckermann(device=self.device)
 
         # 이전 스텝 조향각 (rate limiting용)
         self._prev_delta = torch.zeros(self.num_envs, device=self.device)
@@ -193,47 +194,31 @@ class LidarNavEnv(DirectRLEnv):
     # ─────────────────────────────────────────────────────────────────────────
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
-        """정규화된 행동 [-1, 1] → 실제 제어값으로 변환."""
+        """정규화된 행동 [-1, 1] → 실제 제어값으로 변환.
+
+        HunterSEAckermann (WheeledLab MuSHR 방식) 사용:
+            - 조향각 기준: 차체 중심(bicycle model) 조향각 delta_c
+            - 외륜/내륜 각도 및 후륜 차동 속도를 클래스가 일괄 계산
+        """
         self._actions = actions.clone()
 
         # linear_vel: [-1, 1] → [0, max_linear_vel]  (전진 전용)
         lin_vel = (actions[:, 0] + 1.0) / 2.0 * self.cfg.max_linear_vel
 
-        # action[1]: [-1, 1] → 차체 중심 조향각 delta [-MAX_STEER, MAX_STEER]
-        # (ang_vel = v·tan(delta)/L 특이점 제거: 조향각을 직접 제어)
+        # action[1]: [-1, 1] → 차체 중심 조향각 delta_c [-MAX_STEER, MAX_STEER]
         delta_target = actions[:, 1] * _MAX_STEER
 
         # 조향 변화율 제한: 실제 Hunter SE 조향 속도 ≈ 0.5 rad/s
-        # step_dt = 0.02s → 스텝당 최대 변화 = 0.01 rad
         _MAX_STEER_RATE = 0.5 * self.step_dt
         delta = self._prev_delta + torch.clamp(
             delta_target - self._prev_delta, -_MAX_STEER_RATE, _MAX_STEER_RATE
         )
         self._prev_delta = delta.detach()
 
-        # Ackermann: 요레이트 = v · tan(delta) / L → 후륜 차동 각속도
-        tan_delta = torch.tan(delta)
-        ang_vel = lin_vel * tan_delta / _WHEELBASE   # [rad/s]
-
-        # 차동 구동 역기구학 → 후륜 각속도
-        half_track = _REAR_TRACK / 2.0
-        self._omega_l = (lin_vel - ang_vel * half_track) / _WHEEL_RADIUS
-        self._omega_r = (lin_vel + ang_vel * half_track) / _WHEEL_RADIUS
-
-        # Ackermann 좌/우 독립 조향각
-        L  = _WHEELBASE
-        tw = _REAR_TRACK
-
-        denom_out = L + 0.5 * tw * tan_delta
-        denom_in  = L - 0.5 * tw * tan_delta
-        safe_denom_out = torch.where(denom_out.abs() < 1e-6, torch.ones_like(denom_out) * 1e-6, denom_out)
-        safe_denom_in  = torch.where(denom_in.abs()  < 1e-6, torch.ones_like(denom_in)  * 1e-6, denom_in)
-
-        delta_out = torch.atan(L * tan_delta / safe_denom_out)
-        delta_in  = torch.atan(L * tan_delta / safe_denom_in)
-
-        self._steer_l = torch.where(delta > 0, delta_in,  delta_out)
-        self._steer_r = torch.where(delta > 0, delta_out, delta_in)
+        # HunterSEAckermann: 중심각 → 좌/우 조향각 + 후륜 차동 각속도
+        self._steer_l, self._steer_r, self._omega_l, self._omega_r = (
+            self._ackermann.compute(lin_vel, delta)
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # 행동 적용

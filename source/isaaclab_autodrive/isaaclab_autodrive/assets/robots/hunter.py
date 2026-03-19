@@ -19,6 +19,13 @@ Hunter SE 제원 (Physics.usda 기준):
     전륜 조향 (position 제어): fr_steer_left_joint, fr_steer_right_joint
     가상 조향/후륜축 (잠금)  : front_steer_joint, rear_wheel_joint
     전륜 자유회전            : fr_left_joint, fr_right_joint
+
+액추에이터 모델 (WheeledLab MuSHR 방식):
+    후륜 구동 : DCMotorCfg (토크-속도 포화 커브)
+    전륜 조향 : ImplicitActuatorCfg 저강성 (서보 유연성 반영)
+
+바퀴 충돌 근사: convexHull (Physics.usda)
+접지 충격 제한: max_contact_impulse=0.0
 """
 
 from __future__ import annotations
@@ -26,7 +33,7 @@ from __future__ import annotations
 import os
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
 
 ##
@@ -48,12 +55,13 @@ HUNTER_SE_CFG = ArticulationCfg(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=1.0,
+            max_contact_impulse=0.0,       # MuSHR 방식: 접지 충격 클램핑 해제
             enable_gyroscopic_forces=True,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
             solver_position_iteration_count=32,
-            solver_velocity_iteration_count=4,
+            solver_velocity_iteration_count=8,
             sleep_threshold=0.005,
             stabilization_threshold=0.001,
         ),
@@ -63,20 +71,24 @@ HUNTER_SE_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.3),  # 지형 위 안전 높이
     ),
     actuators={
-        # 후륜 속도 제어 — stiffness=0 (velocity mode)
-        "wheels": ImplicitActuatorCfg(
+        # 후륜 구동 — DCMotorCfg (MuSHR throttle 방식)
+        "wheels": DCMotorCfg(
             joint_names_expr=["re_left_joint", "re_right_joint"],
+            saturation_effort=30.0,
+            effort_limit=15.0,
+            velocity_limit=12.0,
             stiffness=0.0,
-            damping=17453.0,
+            damping=30.0,
+            friction=0.0,
         ),
-        # 전륜 조향 위치 제어 — ±22° (0.384 rad) 제한
+        # 전륜 조향 — 저강성 ImplicitActuatorCfg (MuSHR steering 방식 스케일)
         "steering": ImplicitActuatorCfg(
             joint_names_expr=["fr_steer_left_joint", "fr_steer_right_joint"],
-            stiffness=1e7,
-            damping=1e5,
-            effort_limit_sim=6000.0,
+            stiffness=500.0,
+            damping=50.0,
+            effort_limit_sim=50.0,
         ),
-        # 가상 조향/후륜축 — 고강성으로 잠금
+        # 가상 조향/후륜축 — 고강성 잠금
         "virtual_joints": ImplicitActuatorCfg(
             joint_names_expr=["front_steer_joint", "rear_wheel_joint"],
             stiffness=1e7,

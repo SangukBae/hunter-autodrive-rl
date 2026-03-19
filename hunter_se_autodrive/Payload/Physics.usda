@@ -3,31 +3,40 @@
     customLayerData = {
         string creator = "URDF USD Converter v0.1.0"
     }
-    defaultPrim = "hunter_se_description"
+    defaultPrim = "hunter_se_autodrive_description"
     kilogramsPerUnit = 1
     metersPerUnit = 1
     upAxis = "Z"
 )
 
-def Xform "hunter_se_description" (
+# AutoDRIVE Hunter SE 물리 파라미터 (HunterSESceneBuilder.cs 기준)
+# 축거   : 0.550 m  →  front joint X = +0.275,  rear joint X = -0.275
+# 윤거   : 0.520 m  →  left joint Y = +0.260,  right joint Y = -0.260
+# 바퀴 반경: 0.082 m
+# 총 질량: 25 kg  (차체 ~17.5 kg + 바퀴 4 × 1.875 kg)
+# 조향 한계: ±30°
+
+def Xform "hunter_se_autodrive_description" (
     prepend apiSchemas = ["PhysicsArticulationRootAPI", "NewtonArticulationRootAPI"]
 )
 {
     def Scope "Physics"
     {
+        # ── 전륜 조향 조인트 ─────────────────────────────────────────────
+
         def PhysicsRevoluteJoint "fr_steer_left_joint" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular"]
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_left_link>
-            point3f physics:localPos0 = (0.34058, 0.24619, -0.1535)
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/fr_steer_left_link>
+            point3f physics:localPos0 = (0.275, 0.260, -0.100)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -22.0
-            float physics:upperLimit = 22.0
+            float physics:lowerLimit = -30.0
+            float physics:upperLimit = 30.0
             custom float urdf:limit:effort = 0
             custom float urdf:limit:velocity = 0
             float drive:angular:physics:stiffness = 10000000.0
@@ -41,8 +50,8 @@ def Xform "hunter_se_description" (
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link/fr_steer_left_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_left_link/fr_left_link>
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link/fr_steer_left_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/fr_steer_left_link/fr_left_link>
             point3f physics:localPos0 = (0, 0, 0)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (0.7071081, -0.70710546, 0, 0)
@@ -59,14 +68,14 @@ def Xform "hunter_se_description" (
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_right_link>
-            point3f physics:localPos0 = (0.34058, -0.24619, -0.1535)
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/fr_steer_right_link>
+            point3f physics:localPos0 = (0.275, -0.260, -0.100)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -22.0
-            float physics:upperLimit = 22.0
+            float physics:lowerLimit = -30.0
+            float physics:upperLimit = 30.0
             custom float urdf:limit:effort = 0
             custom float urdf:limit:velocity = 0
             float drive:angular:physics:stiffness = 10000000.0
@@ -80,8 +89,8 @@ def Xform "hunter_se_description" (
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link/fr_steer_right_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/fr_steer_right_link/fr_right_link>
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link/fr_steer_right_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/fr_steer_right_link/fr_right_link>
             point3f physics:localPos0 = (0, 0, 0)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (-0.70710546, 0.7071081, 0, 0)
@@ -93,14 +102,16 @@ def Xform "hunter_se_description" (
             float drive:angular:physics:targetPosition = 0.0
         }
 
+        # ── 후륜 구동 조인트 ─────────────────────────────────────────────
+
         def PhysicsRevoluteJoint "re_left_joint" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular"]
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/re_left_link>
-            point3f physics:localPos0 = (-0.2078, 0.252, -0.158)
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/re_left_link>
+            point3f physics:localPos0 = (-0.275, 0.260, -0.100)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (0.7071081, -0.70710546, 0, 0)
             quatf physics:localRot1 = (0, -1, 0, 0)
@@ -116,9 +127,9 @@ def Xform "hunter_se_description" (
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/re_right_link>
-            point3f physics:localPos0 = (-0.2078, -0.252, -0.158)
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/re_right_link>
+            point3f physics:localPos0 = (-0.275, -0.260, -0.100)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (-0.70710546, 0.7071081, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
@@ -129,14 +140,16 @@ def Xform "hunter_se_description" (
             float drive:angular:physics:targetVelocity = 0.0
         }
 
+        # ── 가상 조향/후륜 조인트 (잠금) ────────────────────────────────
+
         def PhysicsRevoluteJoint "front_steer_joint" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular"]
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/front_steer_link>
-            point3f physics:localPos0 = (0.40792, -0.000011431, -0.085581)
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/front_steer_link>
+            point3f physics:localPos0 = (0.275, 0.0, -0.054)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
@@ -154,9 +167,9 @@ def Xform "hunter_se_description" (
         )
         {
             uniform token physics:axis = "Z"
-            rel physics:body0 = </hunter_se_description/Geometry/base_link>
-            rel physics:body1 = </hunter_se_description/Geometry/base_link/rear_wheel_link>
-            point3f physics:localPos0 = (-0.30408, -0.000011431, -0.085581)
+            rel physics:body0 = </hunter_se_autodrive_description/Geometry/base_link>
+            rel physics:body1 = </hunter_se_autodrive_description/Geometry/base_link/rear_wheel_link>
+            point3f physics:localPos0 = (-0.275, 0.0, -0.054)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (0.9999987, 0.0016194452, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
@@ -168,29 +181,33 @@ def Xform "hunter_se_description" (
 
     over "Geometry"
     {
+        # ── base_link 물리 ───────────────────────────────────────────────
+        # 차체 질량: 25 kg − 4×1.875 kg (바퀴) − 2×0.005 kg (가상) ≈ 17.49 kg
+        # 관성 텐서: 기존 실물 로봇 값에서 질량비 및 축거/윤거 비율로 스케일링
         over "base_link" (
             prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
-            point3f physics:centerOfMass = (0.037414003, -0.0003730052, -0.07712829)
-            float3 physics:diagonalInertia = (0.12309484, 0.21914472, 0.31372702)
-            float physics:mass = 24.73
+            point3f physics:centerOfMass = (0.0375, -0.00037, -0.049)
+            float3 physics:diagonalInertia = (0.088, 0.157, 0.224)
+            float physics:mass = 17.49
             quatf physics:principalAxes = (0.99992067, -0.00005506678, -0.012597327, -0.000011024965)
 
-            over "base_link_1" (
+            over "base_link_collision" (
                 prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
             )
             {
                 uniform token physics:approximation = "convexHull"
             }
 
+            # ── 전륜 좌 (조향 허브 + 바퀴) ─────────────────────────────
             over "fr_steer_left_link" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
             )
             {
-                point3f physics:centerOfMass = (-0.00027764923, 0.016353978, 4.9734616e-9)
-                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
-                float physics:mass = 3.149
+                point3f physics:centerOfMass = (-0.00018, 0.0104, 3.16e-9)
+                float3 physics:diagonalInertia = (0.0132, 0.0132, 0.0225)
+                float physics:mass = 1.875
                 quatf physics:principalAxes = (1, 0, 0, 0)
 
                 over "box_1" (
@@ -203,27 +220,28 @@ def Xform "hunter_se_description" (
                     prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                 )
                 {
-                    point3f physics:centerOfMass = (-3.58375e-10, 4.9734616e-9, -0.016356334)
-                    float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
-                    float physics:mass = 3.149
+                    point3f physics:centerOfMass = (-2.27e-10, 3.16e-9, -0.0104)
+                    float3 physics:diagonalInertia = (0.0037, 0.0037, 0.0063)
+                    float physics:mass = 1.875
                     quatf physics:principalAxes = (1, 0, 0, 0)
 
-                    over "fr_left_link_1" (
+                    over "fr_left_link_collision" (
                         prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
                     )
                     {
-                        uniform token physics:approximation = "convexHull"
+                        uniform token physics:approximation = "boundingSphere"
                     }
                 }
             }
 
+            # ── 전륜 우 (조향 허브 + 바퀴) ─────────────────────────────
             over "fr_steer_right_link" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
             )
             {
-                point3f physics:centerOfMass = (0.00027498198, -0.016354023, -3.248024e-11)
-                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
-                float physics:mass = 3.149
+                point3f physics:centerOfMass = (0.00017, -0.0104, -2.06e-11)
+                float3 physics:diagonalInertia = (0.0132, 0.0132, 0.0225)
+                float physics:mass = 1.875
                 quatf physics:principalAxes = (1, 0, 0, 0)
 
                 over "box_1" (
@@ -236,54 +254,57 @@ def Xform "hunter_se_description" (
                     prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                 )
                 {
-                    point3f physics:centerOfMass = (0.00027498198, 3.248013e-11, -0.016354023)
-                    float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
-                    float physics:mass = 3.149
+                    point3f physics:centerOfMass = (0.00017, 2.06e-11, -0.0104)
+                    float3 physics:diagonalInertia = (0.0037, 0.0037, 0.0063)
+                    float physics:mass = 1.875
                     quatf physics:principalAxes = (1, 0, 0, 0)
 
-                    over "fr_right_link_1" (
+                    over "fr_right_link_collision" (
                         prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
                     )
                     {
-                        uniform token physics:approximation = "convexHull"
+                        uniform token physics:approximation = "boundingSphere"
                     }
                 }
             }
 
+            # ── 후륜 좌 ──────────────────────────────────────────────────
             over "re_left_link" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
             )
             {
-                point3f physics:centerOfMass = (1.245e-9, 0.0000017252, -0.010284)
-                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
-                float physics:mass = 3.149
+                point3f physics:centerOfMass = (7.9e-10, 1.1e-6, -0.0065)
+                float3 physics:diagonalInertia = (0.0037, 0.0037, 0.0063)
+                float physics:mass = 1.875
                 quatf physics:principalAxes = (1, 0, 0, 0)
 
-                over "re_left_link_1" (
+                over "re_left_link_collision" (
                     prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
                 )
                 {
-                    uniform token physics:approximation = "convexHull"
+                    uniform token physics:approximation = "boundingSphere"
                 }
             }
 
+            # ── 후륜 우 ──────────────────────────────────────────────────
             over "re_right_link" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
             )
             {
-                point3f physics:centerOfMass = (0, 0, -0.010284)
-                float3 physics:diagonalInertia = (0.0222, 0.0222, 0.0378075)
-                float physics:mass = 3.149
+                point3f physics:centerOfMass = (0, 0, -0.0065)
+                float3 physics:diagonalInertia = (0.0037, 0.0037, 0.0063)
+                float physics:mass = 1.875
                 quatf physics:principalAxes = (1, 0, 0, 0)
 
-                over "re_right_link_1" (
+                over "re_right_link_collision" (
                     prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
                 )
                 {
-                    uniform token physics:approximation = "convexHull"
+                    uniform token physics:approximation = "boundingSphere"
                 }
             }
 
+            # ── 가상 링크 (매우 가벼움) ──────────────────────────────────
             over "front_steer_link" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
             )
@@ -304,7 +325,7 @@ def Xform "hunter_se_description" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
             )
             {
-                point3f physics:centerOfMass = (-0.02, 0.0031269, -0.12735)
+                point3f physics:centerOfMass = (-0.02, 0.0031269, -0.08)
                 float3 physics:diagonalInertia = (9.5165393e-7, 0.000001092406, 0.0000011821)
                 float physics:mass = 0.0049179
                 quatf physics:principalAxes = (-0.5216815, 0.4773319, 0.52170056, 0.4773167)
