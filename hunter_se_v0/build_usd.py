@@ -169,13 +169,15 @@ def _add_knuckle_col(stage, parent_path):
 
 
 def _add_wheel_col(stage, parent_path):
-    """바퀴 충돌 형상 (Cylinder, axis=Y, 렌더링 비활성)."""
-    cyl = UsdGeom.Cylinder.Define(stage, f"{parent_path}/wheel_col")
-    cyl.GetRadiusAttr().Set(WHEEL_RADIUS)
-    cyl.GetHeightAttr().Set(WHEEL_WIDTH)
-    cyl.GetAxisAttr().Set("Y")
-    _apply_collision(cyl.GetPrim())
-    UsdGeom.Imageable(cyl.GetPrim()).MakeInvisible()
+    """바퀴 충돌 형상 (Sphere, 렌더링 비활성).
+
+    PhysX 네이티브 Sphere 는 edge 가 전혀 없어 접지 안정성이 가장 높다.
+    Cylinder/Capsule 의 평면 모서리 edge contact 로 인한 spin 자가증폭을 방지한다.
+    """
+    sph = UsdGeom.Sphere.Define(stage, f"{parent_path}/wheel_col")
+    sph.GetRadiusAttr().Set(WHEEL_RADIUS)
+    _apply_collision(sph.GetPrim())
+    UsdGeom.Imageable(sph.GetPrim()).MakeInvisible()
 
 
 def _add_angular_drive(
@@ -304,7 +306,7 @@ def build(output_path: str) -> str:
     _make_link(stage, RR_WHEEL, WHEEL_MASS,
                world_pos=(REAR_AX_X, -REAR_AX_Y, REAR_AX_Z))
     _add_wheel_col(stage, RR_WHEEL)
-    _add_vis_ref(stage, RR_WHEEL, "wheel_vis", "/Geometry/re_left_link", orient_wxyz=_Q_RR)
+    _add_vis_ref(stage, RR_WHEEL, "wheel_vis", "/Geometry/re_right_link", orient_wxyz=_Q_RR)
 
     # ── 조인트 ────────────────────────────────────────────────────────────────
     PHYS = f"{ROOT}/Physics"

@@ -181,7 +181,8 @@ r = goal_progress(Δdist) × 5.0       # dense, 목표 접근
 
 | 항목 | 경로 / 버전 |
 |---|---|
-| Isaac Lab | `/workspace/isaaclab/` |
+| Isaac Lab | `/workspace/isaaclab/` — **v2.3.2** |
+| Isaac Sim | `/isaac-sim/` — **v5.0.0-rc.45** |
 | 본 프로젝트 | `/workspace/hunter_autodrive/` |
 | Hunter SE USD | `/workspace/hunter_autodrive/hunter_se/` |
 | ROS2 워크스페이스 (예정) | `/robot_isaac/ros2_ws/` |

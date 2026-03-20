@@ -64,12 +64,10 @@ def Xform "HunterSEV0" (
         double3 xformOp:translate = (0.3405799865722656, 0.24618999660015106, -0.1535000056028366)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
-        def Cylinder "wheel_col" (
+        def Sphere "wheel_col" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            uniform token axis = "Y"
-            double height = 0.08
             double radius = 0.129
             token visibility = "invisible"
         }
@@ -116,12 +114,10 @@ def Xform "HunterSEV0" (
         double3 xformOp:translate = (0.3405799865722656, -0.24618999660015106, -0.1535000056028366)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
-        def Cylinder "wheel_col" (
+        def Sphere "wheel_col" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            uniform token axis = "Y"
-            double height = 0.08
             double radius = 0.129
             token visibility = "invisible"
         }
@@ -151,12 +147,10 @@ def Xform "HunterSEV0" (
         double3 xformOp:translate = (-0.2078000009059906, 0.25200000405311584, -0.15800000727176666)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
-        def Cylinder "wheel_col" (
+        def Sphere "wheel_col" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            uniform token axis = "Y"
-            double height = 0.08
             double radius = 0.129
             token visibility = "invisible"
         }
@@ -186,12 +180,10 @@ def Xform "HunterSEV0" (
         double3 xformOp:translate = (-0.2078000009059906, -0.25200000405311584, -0.15800000727176666)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
-        def Cylinder "wheel_col" (
+        def Sphere "wheel_col" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            uniform token axis = "Y"
-            double height = 0.08
             double radius = 0.129
             token visibility = "invisible"
         }
@@ -202,7 +194,7 @@ def Xform "HunterSEV0" (
             uniform token[] xformOpOrder = ["xformOp:orient"]
 
             def "mesh" (
-                prepend references = @../hunter_se/Payload/GeometryLibrary.usdc@</Geometry/re_left_link>
+                prepend references = @../hunter_se/Payload/GeometryLibrary.usdc@</Geometry/re_right_link>
             )
             {
                 quatf xformOp:orient = (1, 0, 0, 0)
@@ -328,4 +320,5 @@ def Xform "HunterSEV0" (
         }
     }
 }
+
 
