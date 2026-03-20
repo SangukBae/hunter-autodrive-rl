@@ -36,6 +36,14 @@ hunter_autodrive/
 
 ## 빠른 시작
 
+### 0. Setup
+```bash
+# Host
+sudo systemctl restart docker
+
+xhost +local:
+```
+
 ### 1. 패키지 설치
 
 ```bash
