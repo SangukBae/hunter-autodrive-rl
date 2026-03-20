@@ -20,10 +20,10 @@ from __future__ import annotations
 import torch
 
 # ── Hunter SE 물리 상수 ────────────────────────────────────────────────────────
-WHEELBASE    = 0.548    # 축거 L [m]   (FRONT_AX_X − REAR_AX_X = 0.34058+0.2078)
+WHEELBASE    = 0.548    # 축거 L [m]   (FRONT_AX_X − REAR_AX_X = 0.34058+0.2078, URDF 관절 기준)
 FRONT_TRACK  = 0.492    # 전륜 피벗 간격 W_f [m]  (FRONT_AX_Y × 2)
 REAR_TRACK   = 0.504    # 후륜 허브 간격 W_r [m]  (REAR_AX_Y × 2)
-WHEEL_RADIUS = 0.129    # 바퀴 반지름 r [m]
+WHEEL_RADIUS = 0.1375   # 바퀴 반지름 r [m]  (매뉴얼 직경 0.275 m / 2)
 MAX_STEER    = 0.384    # 최대 차체 중심 조향각 [rad]  (≈ 22°)
 MAX_SPEED    = 1.333    # 최대 선속도 [m/s]  (4.8 km/h)
 

@@ -58,17 +58,19 @@ REAR_AX_X    = -0.2078    # 후륜 관절 X [m]
 REAR_AX_Y    =  0.252     # 후륜 허브 ±Y [m]
 REAR_AX_Z    = -0.158     # 후륜 관절 Z [m]
 
-WHEEL_RADIUS =  0.129     # 바퀴 반지름 [m]
+WHEEL_RADIUS =  0.1375    # 바퀴 반지름 [m]  (매뉴얼 직경 0.275 m / 2)
 WHEEL_WIDTH  =  0.080     # 바퀴 폭 [m]
 MAX_STEER_DEG = 22.0      # 최대 조향각 [deg]
 
-# 차체 외형 (PDF 기준)
+# 차체 외형 (매뉴얼 기준)
 CHASSIS_L    =  0.817
-CHASSIS_W    =  0.580
-CHASSIS_H    =  0.120
+CHASSIS_W    =  0.640    # 매뉴얼 전체 폭 0.640~0.644 m 하한 적용
+CHASSIS_H    =  0.120    # 차체 박스 높이만 반영 (전체 외형 0.304~0.310 m 아님)
 
-# 질량 (URDF Physics.usda 값)
-CHASSIS_MASS = 29.39
+# 질량 (공차중량 42 kg 기준 역산)
+# 너클 2 × 3.149 + 바퀴 4 × 3.149 = 18.894 kg
+# CHASSIS_MASS = 42.0 − 18.894 = 23.106 kg
+CHASSIS_MASS = 23.106
 KNUCKLE_MASS =  3.149
 WHEEL_MASS   =  3.149
 

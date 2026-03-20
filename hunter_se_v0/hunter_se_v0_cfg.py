@@ -62,8 +62,8 @@ HUNTER_SE_V0_CFG = ArticulationCfg(
         copy_from_source=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        # 스폰 높이: 바퀴 중심(0.129m) + |REAR_AX_Z|(0.158m) = 0.287m
-        pos=(0.0, 0.0, 0.287),
+        # 스폰 높이: 바퀴 반지름(0.1375m) + |REAR_AX_Z|(0.158m) = 0.2955m
+        pos=(0.0, 0.0, 0.2955),
     ),
     actuators={
         # ── 후륜 구동: DCMotorCfg (토크-속도 포화 커브) ─────────────────────
