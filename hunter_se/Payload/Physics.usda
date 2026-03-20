@@ -173,8 +173,8 @@ def Xform "hunter_se_description" (
         )
         {
             point3f physics:centerOfMass = (0.037414003, -0.0003730052, -0.07712829)
-            float3 physics:diagonalInertia = (0.12309484, 0.21914472, 0.31372702)
-            float physics:mass = 24.73
+            float3 physics:diagonalInertia = (0.14629452, 0.26044693, 0.37285515)
+            float physics:mass = 29.39
             quatf physics:principalAxes = (0.99992067, -0.00005506678, -0.012597327, -0.000011024965)
 
             over "base_link_1" (
@@ -293,9 +293,7 @@ def Xform "hunter_se_description" (
                 float physics:mass = 0.0049179
                 quatf physics:principalAxes = (0.70707345, -0.70707345, 0.00686424, -0.00686424)
 
-                over "cylinder_1" (
-                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI"]
-                )
+                over "cylinder_1"
                 {
                 }
             }
@@ -309,9 +307,7 @@ def Xform "hunter_se_description" (
                 float physics:mass = 0.0049179
                 quatf physics:principalAxes = (-0.5216815, 0.4773319, 0.52170056, 0.4773167)
 
-                over "cylinder_1" (
-                    prepend apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI"]
-                )
+                over "cylinder_1"
                 {
                 }
             }
