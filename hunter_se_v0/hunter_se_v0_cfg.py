@@ -67,15 +67,21 @@ HUNTER_SE_V0_CFG = ArticulationCfg(
     ),
     actuators={
         # ── 후륜 구동: DCMotorCfg (토크-속도 포화 커브) ─────────────────────
-        # hunter_se_cfg.py 와 동일 파라미터
-        #   τ_sat=30 N·m, ω_max=12 rad/s, kd=30, effort_limit=15
+        # r=0.1375m, 총질량=42kg 기준 후륜 슬립 한계: 101.4N × 0.1375m = 13.94 N·m
+        #   velocity_limit=15 rad/s → 크루즈(ω=9.695)에서 포화 토크 여유 확보
+        #     τ_sat = 30×(1−9.695/15) = 10.6 N·m  →  drive_force = 77.1 N  < 101.4 N ✓
+        #   effort_limit=11.0: 전속력 구간 내내 drive_force=80.0N < 101.4N 유지 (슬립 방지)
+        #   damping=15: 50 Hz 제어 루프 이산 시간 안정성
+        #     K = 2×d/r² = 1,585 N/(m/s), M_eff=45 kg
+        #     이산 극점 = 1 − K×h/M = 1 − 1585×0.02/45 = +0.295  (양수 → 단조 수렴, 진동 없음)
+        #     (d=30일 때 극점 = −0.41 → 매 스텝 부호 반전으로 속도 진동 발생)
         "wheels": DCMotorCfg(
             joint_names_expr=["re_left_joint", "re_right_joint"],
             saturation_effort=30.0,
-            effort_limit=15.0,
-            velocity_limit=12.0,
+            effort_limit=11.0,
+            velocity_limit=15.0,
             stiffness=0.0,
-            damping=30.0,
+            damping=15.0,
             friction=0.0,
         ),
         # ── 전륜 조향: ImplicitActuatorCfg (저강성 서보) ─────────────────────
@@ -85,11 +91,13 @@ HUNTER_SE_V0_CFG = ArticulationCfg(
             damping=50.0,
             effort_limit_sim=50.0,
         ),
-        # ── 전륜 자유회전: 베어링 마찰 수준 ──────────────────────────────────
+        # ── 전륜 자유회전: 실제 베어링 수준 저마찰 ───────────────────────────
+        # damping=0.01: 크루즈(9.695 rad/s)에서 전륜 제동력 1.4N (기존 0.5→70.5N)
+        # 구동력 여유: 83.8N→154.2N 대비 저항 70.5N→1.4N → 진동 해소
         "front_wheels": ImplicitActuatorCfg(
             joint_names_expr=["fr_left_joint", "fr_right_joint"],
             stiffness=0.0,
-            damping=0.5,
+            damping=0.01,
         ),
     },
 )

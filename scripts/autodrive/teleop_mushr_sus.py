@@ -244,6 +244,7 @@ def print_hud(
     step: int,
     robot: Articulation,
     idx_steer_l: int, idx_steer_r: int,
+    idx_throttles: list[int],
     v_cmd: float, steer_cmd: float,
     omega_rad: float,
 ) -> None:
@@ -254,18 +255,21 @@ def print_hud(
     _, _, yaw = euler_xyz_from_quat(robot.data.root_quat_w[0:1])
     yaw_deg   = math.degrees(float(yaw[0]))
 
-    jpos   = robot.data.joint_pos[0]
-    sl_act = math.degrees(float(jpos[idx_steer_l]))
-    sr_act = math.degrees(float(jpos[idx_steer_r]))
+    jpos = robot.data.joint_pos[0]
+    jvel = robot.data.joint_vel[0]
+    sl_act  = math.degrees(float(jpos[idx_steer_l]))
+    sr_act  = math.degrees(float(jpos[idx_steer_r]))
+    bl_vel  = float(jvel[idx_throttles[0]])   # back_left 실제 각속도
+    br_vel  = float(jvel[idx_throttles[1]])   # back_right 실제 각속도
 
     t = step * STEP_DT
     print(
         f"\r[{t:6.1f}s] "
         f"pos=({pos[0].item():6.2f},{pos[1].item():6.2f}) "
-        f"yaw={yaw_deg:6.1f}° spd={speed:.2f}m/s | "
-        f"cmd v={v_cmd:+.2f}m/s δ={math.degrees(steer_cmd):+5.1f}° "
-        f"ω={omega_rad:+6.1f}rad/s | "
-        f"조향 L={sl_act:+5.1f}° R={sr_act:+5.1f}°  ",
+        f"yaw={yaw_deg:6.1f}° spd={speed:.3f}m/s | "
+        f"cmd v={v_cmd:+.2f}m/s δ={math.degrees(steer_cmd):+5.1f}° | "
+        f"조향 L={sl_act:+5.1f}° R={sr_act:+5.1f}° | "
+        f"후륜 ωL={bl_vel:+6.1f} ωR={br_vel:+6.1f} cmdω={omega_rad:+6.1f}rad/s  ",
         end="",
         flush=True,
     )
@@ -360,6 +364,7 @@ def main():
             print_hud(
                 step, robot,
                 idx_steer_l, idx_steer_r,
+                idx_throttles,
                 v_cmd, steer_smooth, omega_rad,
             )
 

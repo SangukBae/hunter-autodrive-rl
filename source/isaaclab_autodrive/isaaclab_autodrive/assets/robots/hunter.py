@@ -106,3 +106,15 @@ HUNTER_SE_CFG = ArticulationCfg(
 
 # 하위 호환성 별칭 (legacy 코드에서 HUNTER_CFG를 참조하는 경우 대비)
 HUNTER_CFG = HUNTER_SE_CFG
+
+# ── Hunter SE V0 (기본 도형 기반, 검증된 물리 파라미터) ──────────────────────
+# hunter_se_v0_cfg.py 에 정의된 CFG를 그대로 참조.
+# 주요 차이점:
+#   - 바퀴 반지름: 0.129 → 0.1375 m  (공식 메뉴얼 기준)
+#   - virtual_joints 없음  (v0 단순화)
+#   - DCMotorCfg damping=15 (50Hz 이산 시간 안정성 최적화)
+#   - velocity_limit=15 rad/s (크루즈 속도 포화 토크 여유 확보)
+#   - 전륜 damping=0.01 (실제 베어링 마찰 수준, 전진 저항 최소화)
+import sys as _sys
+_sys.path.insert(0, "/workspace/hunter_autodrive")
+from hunter_se_v0.hunter_se_v0_cfg import HUNTER_SE_V0_CFG  # noqa: E402

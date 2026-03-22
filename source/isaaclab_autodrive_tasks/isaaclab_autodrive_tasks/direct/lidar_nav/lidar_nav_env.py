@@ -43,7 +43,7 @@ from .lidar_nav_env_cfg import LidarNavEnvCfg
 
 import sys
 sys.path.insert(0, "/workspace/hunter_autodrive")
-from hunter_se.ackermann import HunterSEAckermann, MAX_STEER as _MAX_STEER
+from hunter_se_v0.ackermann import HunterSEAckermann, MAX_STEER as _MAX_STEER
 
 # 로봇 근사 반경 (충돌 판정용)
 _ROBOT_RADIUS = 0.30    # [m]

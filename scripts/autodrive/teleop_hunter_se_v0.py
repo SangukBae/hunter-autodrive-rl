@@ -205,7 +205,7 @@ def reset_robot(robot: Articulation, sim: SimulationContext) -> None:
     zeros = torch.zeros(1, device=dev)
 
     root_state = robot.data.default_root_state.clone()
-    root_state[0, :3] = torch.tensor([0.0, 0.0, 0.287], device=dev)
+    root_state[0, :3] = torch.tensor([0.0, 0.0, 0.2955], device=dev)
     root_state[0, 3:7] = quat_from_euler_xyz(zeros, zeros, zeros)[0]
     root_state[0, 7:]  = 0.0
 

@@ -35,7 +35,7 @@ from isaaclab.sim import PhysxCfg, SimulationCfg
 from isaaclab.sim.spawners.materials import RigidBodyMaterialCfg
 from isaaclab.utils import configclass
 
-from isaaclab_autodrive.assets.robots.hunter import HUNTER_SE_CFG
+from isaaclab_autodrive.assets.robots.hunter import HUNTER_SE_V0_CFG
 
 
 @configclass
@@ -45,7 +45,7 @@ class LidarNavEnvCfg(DirectRLEnvCfg):
     # ── 시뮬레이션 ──────────────────────────────────────────────────────────────
     sim: SimulationCfg = SimulationCfg(
         dt=1 / 200,
-        render_interval=4,        # STEP_DT = 0.02s (drive_hunter_se.py와 동일)
+        render_interval=4,        # STEP_DT = 0.02s
         use_fabric=True,
         enable_scene_query_support=True,
         gravity=(0.0, 0.0, -9.81),
@@ -64,8 +64,8 @@ class LidarNavEnvCfg(DirectRLEnvCfg):
         ),
     )
 
-    # ── 로봇 ────────────────────────────────────────────────────────────────────
-    robot: ArticulationCfg = HUNTER_SE_CFG.replace(
+    # ── 로봇 (Hunter SE V0 — 공식 메뉴얼 스펙 기반, 물리 파라미터 검증 완료) ──
+    robot: ArticulationCfg = HUNTER_SE_V0_CFG.replace(
         prim_path="/World/envs/env_.*/Robot"
     )
 

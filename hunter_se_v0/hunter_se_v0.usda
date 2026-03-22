@@ -13,7 +13,7 @@ def Xform "HunterSEV0" (
         prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
     )
     {
-        float physics:mass = 29.39
+        float physics:mass = 23.106
 
         def Cube "chassis_col" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
@@ -21,7 +21,7 @@ def Xform "HunterSEV0" (
         {
             double size = 1
             token visibility = "invisible"
-            float3 xformOp:scale = (0.817, 0.58, 0.12)
+            float3 xformOp:scale = (0.817, 0.64, 0.12)
             uniform token[] xformOpOrder = ["xformOp:scale"]
         }
 
@@ -68,7 +68,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            double radius = 0.129
+            double radius = 0.1375
             token visibility = "invisible"
         }
 
@@ -118,7 +118,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            double radius = 0.129
+            double radius = 0.1375
             token visibility = "invisible"
         }
 
@@ -151,7 +151,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            double radius = 0.129
+            double radius = 0.1375
             token visibility = "invisible"
         }
 
@@ -184,7 +184,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsCollisionAPI"]
         )
         {
-            double radius = 0.129
+            double radius = 0.1375
             token visibility = "invisible"
         }
 
@@ -251,7 +251,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.5
+            float drive:angular:physics:damping = 0.01
             float drive:angular:physics:maxForce = 1000000
             float drive:angular:physics:stiffness = 0
             float drive:angular:physics:targetVelocity = 0
@@ -269,7 +269,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.5
+            float drive:angular:physics:damping = 0.01
             float drive:angular:physics:maxForce = 1000000
             float drive:angular:physics:stiffness = 0
             float drive:angular:physics:targetVelocity = 0
