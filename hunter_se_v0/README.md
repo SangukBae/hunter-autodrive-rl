@@ -1,46 +1,190 @@
-## 파일 역할
+# hunter_se_v0 — RL용 procedural Hunter SE 자산
 
-| 파일 | 역할 | 실제 의미 |
+`hunter_se_v0`는 이 저장소에서 RL 학습과 제어 검증에 사용하는 Hunter SE V0 자산입니다. 원본 변환 자산인 `hunter_se/`와 달리, `pxr` Python API로 USD articulation을 절차적으로 만들고, 원본 Hunter SE의 검증된 관절 위치/질량 분배를 그대로 가져옵니다.
+
+핵심 목적은 다음 두 가지입니다.
+
+- RL 환경에서 안정적으로 쓸 수 있는 단순한 물리 구조 제공
+- 원본 `hunter_se/`와 호환되는 조향/구동 관절 이름 유지
+
+또한 시각 메시는 `hunter_se/Payload/GeometryLibrary.usdc`를 그대로 참조하므로, 충돌 형상은 단순화하면서 외형은 기존 모델을 재사용합니다.
+
+## 1. 파일 구성
+
+| 파일 | 역할 | 비고 |
 |---|---|---|
-| `__init__.py` | 패키지 설명 | `hunter_se` 원본에서 물리 파라미터를 가져온 procedural USD 패키지라고 설명 |
-| `build_usd.py` | USD 생성기 | 앞으로 생성될 `hunter_se_v0.usda`의 목표 스펙 |
-| `hunter_se_v0.usda` | 현재 런타임 자산 | 지금 Isaac Lab이 실제로 읽는 링크/질량/조인트 정의 |
-| `hunter_se_v0_cfg.py` | ArticulationCfg | 어떤 USD를 읽고, 어떤 스폰 높이와 액추에이터를 쓸지 정의 |
-| `ackermann.py` | 저수준 기구 상수 | 축거/윤거/최대 조향각/최대 속도 정의 |
+| `__init__.py` | 패키지 설명 | 현재는 설명용 모듈이며 별도 export는 없음 |
+| `build_usd.py` | USD 생성기 | `pxr` API로 `hunter_se_v0.usda` 생성 |
+| `hunter_se_v0.usda` | 체크인된 생성 결과물 | Isaac Lab이 실제로 읽는 USD 자산 |
+| `hunter_se_v0_cfg.py` | `ArticulationCfg` | USD 경로, 스폰 위치, actuator 튜닝 정의 |
+| `ackermann.py` | Ackermann 변환기 | 중심 조향각/선속도를 좌우 조향각과 후륜 각속도로 변환 |
 
-## 주요 스펙 표
+## 2. 현재 자산 구조
 
-| 항목 | `build_usd.py` 설계값 | `hunter_se_v0.usda` 런타임값 | `cfg/ackermann` 값 | 해석 |
-|---|---:|---:|---:|---|
-| 플랫폼 형식 | 전륜 조향, 후륜 구동 | 조인트 구조상 동일 | Ackermann 계산기 사용 | 차량형 UGV 구조 |
-| 조향 방식 | Front Ackermann | 전륜 조향 조인트 2개 | `MAX_STEER = 0.384 rad` | 일관됨 |
-| 구동 방식 | Rear wheel drive | `re_left_joint`, `re_right_joint` | 후륜 2개 velocity target | 일관됨 |
-| 축거 | 0.548 m 기준 사용 | 조인트 위치상 `0.34058 - (-0.2078) = 0.54838 m` | `WHEELBASE = 0.548` | 일치 |
-| 전륜 윤거 | 조인트 기준 0.492 m | `2 * 0.24619 = 0.49238 m` | `FRONT_TRACK = 0.492` | 일치 |
-| 후륜 윤거 | 조인트 기준 0.504 m | `2 * 0.252 = 0.504 m` | `REAR_TRACK = 0.504` | 일치 |
-| 최대 조향각 | 22 deg | 조향 조인트 limit `[-22, 22]` | `0.384 rad` | 일치 |
-| 최대 속도 | 직접 정의 없음 | 직접 정의 없음 | `MAX_SPEED = 1.333 m/s` | 4.8 km/h 기준 |
-| 바퀴 반지름 | 0.1375 m | 0.129 m | 0.129 m | 불일치 |
-| 바퀴 직경 | 0.275 m | 0.258 m | 0.258 m 해석 | 설계와 런타임 불일치 |
-| 바퀴 폭 | 0.080 m | 구체 폭 없음, 현재 Sphere 충돌 | 없음 | 설계는 폭이 있지만 런타임 충돌은 구형 |
-| 바퀴 충돌 형상 | Sphere | Sphere | 없음 | 현재는 원통이 아니라 구형 충돌 |
-| 차체 길이 | 0.817 m | 0.817 m | 없음 | 일치 |
-| 차체 폭 | 0.640 m | 0.580 m | 없음 | 불일치 |
-| 차체 높이 | 0.120 m | 0.120 m | 없음 | 차체 박스 높이만 반영 |
-| 차체 질량 | 23.106 kg | 29.39 kg | 없음 | 불일치 |
-| 너클 질량 | 3.149 kg | 3.149 kg | 없음 | 일치 |
-| 각 바퀴 질량 | 3.149 kg | 3.149 kg | 없음 | 일치 |
-| 총 질량 | 42.0 kg가 되도록 설계 | 48.284 kg | 없음 | 런타임 자산이 더 무거움 |
-| 기본 스폰 높이 | 생성기엔 직접 없음 | 없음 | `0.2955 m` | cfg가 별도 정의 |
-| 후륜축 높이 | `-0.158 m` | `-0.158 m` | 없음 | 일치 |
-| 접지 기준 스폰 높이 | `0.1375 + 0.158 = 0.2955 m` 의도 | 실제 자산 기준이면 `0.129 + 0.158 = 0.287 m` | cfg는 `0.2955 m` | 현재 cfg와 usda가 어긋남 |
-| 후륜 액추에이터 | 없음 | joint drive `damping = 17453` | `DCMotorCfg`, `velocity_limit = 12`, `effort_limit = 15`, `damping = 30` | USD drive + Lab actuator 병행 |
-| 전륜 조향 액추에이터 | 없음 | joint drive `stiffness = 1e7`, `damping = 1e5` | `stiffness = 500`, `damping = 50` | 런타임에 cfg가 덮어씀 |
-| 전륜 자유회전 | 없음 | drive `damping = 0.5` | `damping = 0.5` | 일치 |
+이 자산은 원본 `hunter_se/`보다 단순한 7-link / 6-joint 구조입니다.
 
-## 핵심 결론
+### 링크 구성
 
-- `ackermann.py`와 조인트 위치는 잘 맞습니다. 주행 구조 자체는 전륜 Ackermann + 후륜 구동으로 일관됩니다.
-- 지금 가장 큰 문제는 `build_usd.py`와 `hunter_se_v0.usda`가 동기화되지 않았다는 점입니다.
-- 특히 cfg는 새 설계값인 wheel radius `0.1375`를 기준으로 `spawn z = 0.2955`를 쓰는데, 현재 `usda`는 아직 wheel radius `0.129`입니다. 그래서 현재 조합으로는 이론상 약 `8.5 mm` 떠서 스폰됩니다.
-- 총 질량도 설계는 `42 kg` 목표인데, 현재 런타임 자산은 `48.284 kg`입니다.
+- `base_link`
+- `fr_steer_left_link`
+- `fr_left_link`
+- `fr_steer_right_link`
+- `fr_right_link`
+- `re_left_link`
+- `re_right_link`
+
+### 조인트 구성
+
+- 전륜 조향: `fr_steer_left_joint`, `fr_steer_right_joint`
+- 전륜 자유회전: `fr_left_joint`, `fr_right_joint`
+- 후륜 구동: `re_left_joint`, `re_right_joint`
+
+원본 `hunter_se/`에 있던 `front_steer_joint`, `rear_wheel_joint`는 V0에서 제거되었습니다.
+
+### 계층 구조 특징
+
+`build_usd.py`는 모든 rigid body 링크를 `/HunterSEV0`의 직접 자식으로 두는 플랫 계층을 사용합니다. 조인트 트리는 USD 계층이 아니라 `/HunterSEV0/Physics` 아래 joint의 `body0/body1` 참조로 정의됩니다. 이 구조는 PhysX의 nested rigid body 이슈를 피하기 위한 설계입니다.
+
+## 3. 현재 코드 기준 주요 제원
+
+### 기구/치수
+
+| 항목 | 값 | 출처 |
+|---|---:|---|
+| 축거 (`WHEELBASE`) | `0.548 m` | `ackermann.py`, `build_usd.py` |
+| 전륜 윤거 (`FRONT_TRACK`) | `0.492 m` | `ackermann.py` |
+| 후륜 윤거 (`REAR_TRACK`) | `0.504 m` | `ackermann.py` |
+| 바퀴 반지름 | `0.1375 m` | `ackermann.py`, `build_usd.py`, `hunter_se_v0.usda` |
+| 바퀴 폭 | `0.080 m` | `build_usd.py` 설계값 |
+| 최대 조향각 | `±22°` = `±0.384 rad` | `ackermann.py`, joint limit |
+| 최고 속도 | `1.333 m/s` | `ackermann.py` |
+| 차체 크기 | `0.817 × 0.640 × 0.120 m` | `build_usd.py` |
+| 기본 스폰 높이 | `z = 0.2955 m` | `hunter_se_v0_cfg.py` |
+
+### 질량
+
+| 링크 그룹 | 질량 |
+|---|---:|
+| 차체 (`base_link`) | `23.106 kg` |
+| 너클 2개 | `2 × 3.149 kg` |
+| 바퀴 4개 | `4 × 3.149 kg` |
+| 총 질량 | `42.0 kg` |
+
+즉, 현재 V0 자산은 공식 매뉴얼 기준 `42 kg` 총질량에 맞춰 재배분된 단순화 모델입니다.
+
+## 4. 충돌 형상과 시각 형상
+
+현재 구현은 "기본 도형 기반"이지만, 정확히는 다음 조합입니다.
+
+- 차체 충돌: `Cube`
+- 너클 충돌: `Cube`
+- 바퀴 충돌: `Sphere`
+- 시각 형상: `hunter_se/Payload/GeometryLibrary.usdc` 참조 메시
+
+즉, 일부 오래된 주석이나 문구에 있는 "Box/Cylinder" 표현과 달리, 현재 코드의 바퀴 충돌 형상은 `Cylinder`가 아니라 `Sphere`입니다. 접지 안정성을 위해 Sphere가 선택되어 있습니다.
+
+## 5. 제어 구조와 actuator 설정
+
+### 조인트 축 규약
+
+- 조향 조인트 axis: `Z`
+- 바퀴 조인트 axis: `Y`
+- `ackermann.py` 부호 규약:
+  - 양수 조향각 = 좌회전
+  - 양수 선속도/바퀴 각속도 = 전진
+
+### 런타임 actuator (`hunter_se_v0_cfg.py`)
+
+| 그룹 | 대상 조인트 | 설정 |
+|---|---|---|
+| `wheels` | `re_left_joint`, `re_right_joint` | `DCMotorCfg(saturation_effort=30, effort_limit=11, velocity_limit=15, damping=15)` |
+| `steering` | `fr_steer_left_joint`, `fr_steer_right_joint` | `ImplicitActuatorCfg(stiffness=500, damping=50, effort_limit_sim=50)` |
+| `front_wheels` | `fr_left_joint`, `fr_right_joint` | `ImplicitActuatorCfg(stiffness=0, damping=0.01)` |
+
+### 중요한 점
+
+`hunter_se_v0.usda` 안에도 각 joint에 `PhysicsDriveAPI:angular`가 들어 있습니다. 하지만 실제 Isaac Lab 런타임 튜닝은 `hunter_se_v0_cfg.py`의 actuator 설정이 우선합니다.
+
+예를 들어:
+
+- 후륜 joint의 USD 기본 damping은 `17453`이지만, 런타임 `DCMotorCfg`는 `damping=15`를 사용합니다.
+- 전륜 자유회전 joint의 USD 기본 damping은 `0.5`이지만, 런타임 actuator는 `0.01`을 사용합니다.
+- 전륜 조향 joint의 USD 기본 강성은 매우 크지만, 런타임 actuator는 `500/50` 저강성 서보로 운용됩니다.
+
+따라서 이 폴더를 이해할 때는 "USD는 제어 가능 상태를 보장하는 최소 drive 정의", "실제 제어 특성은 cfg가 결정"이라고 보는 것이 맞습니다.
+
+## 6. Ackermann 변환
+
+`ackermann.py`의 `HunterSEAckermann`는 다음 입력을 받습니다.
+
+- 입력: 차체 중심 조향각 `delta_c [rad]`, 선속도 `v [m/s]`
+- 출력: 좌/우 전륜 조향각, 좌/우 후륜 각속도
+
+이 모듈은 다음 곳에서 직접 사용됩니다.
+
+- `source/isaaclab_autodrive_tasks/.../lidar_nav/lidar_nav_env.py`
+
+## 7. 저장소 내 실제 사용 위치
+
+### 직접 import
+
+```python
+from hunter_se_v0.hunter_se_v0_cfg import HUNTER_SE_V0_CFG
+from hunter_se_v0.ackermann import HunterSEAckermann
+```
+
+### 프로젝트 자산 레이어에서 재노출
+
+`source/isaaclab_autodrive/isaaclab_autodrive/assets/robots/hunter.py`는 `HUNTER_SE_V0_CFG`를 다시 import해서 프로젝트 공용 자산 경로로 노출합니다.
+
+### RL 환경 연결
+
+`source/isaaclab_autodrive_tasks/isaaclab_autodrive_tasks/direct/lidar_nav/lidar_nav_env_cfg.py`는 기본 로봇으로 `HUNTER_SE_V0_CFG`를 사용합니다.
+
+## 8. USD 생성과 재생성
+
+### 자동 생성
+
+`hunter_se_v0_cfg.py`는 `hunter_se_v0.usda`가 없으면 import 시 자동으로 `build_usd.py`를 호출합니다.
+
+주의:
+
+- 이 자동 생성은 `pxr`를 사용할 수 있는 Isaac Sim Python 환경에서만 동작합니다.
+- 일반 시스템 Python에서 import만으로 생성되는 구조는 아닙니다.
+
+### 수동 생성
+
+```bash
+/workspace/isaaclab/isaaclab.sh -p hunter_se_v0/build_usd.py
+```
+
+## 9. 현재 체크인된 USD와 생성기 동기화 상태
+
+현재 저장소의 `hunter_se_v0.usda`는 핵심 물리 파라미터 기준으로는 `build_usd.py`와 대체로 맞습니다.
+
+일치하는 예:
+
+- 차체 질량 `23.106 kg`
+- 바퀴 반지름 `0.1375 m`
+- 후륜 joint 기본 damping `17453`
+- 차체 `Cube` / 바퀴 `Sphere` 충돌 구조
+
+다만 완전 동일하다고 보기는 어렵습니다.
+
+- 체크인된 `hunter_se_v0.usda`에는 `base_link/Lidar` prim이 들어 있습니다.
+- 현재 `build_usd.py`에는 그 RTX LiDAR prim을 생성하는 코드가 없습니다.
+
+즉, `USD를 다시 생성하면 현재 체크인본과 100% 동일하지 않을 수 있습니다.`
+
+다행히 현재 RL 태스크는 이 USD 내부의 RTX LiDAR를 직접 사용하지 않고, `lidar_nav_env.py`에서 `MultiMeshRayCaster`를 별도로 생성하므로 학습 파이프라인의 핵심 동작은 이 차이에 의존하지 않습니다.
+
+## 10. 설계 특징
+
+`hunter_se_v0`는 URDF→USD 변환본 대신 `pxr` API로 직접 생성한 procedural USD입니다.
+
+| 항목 | 선택 이유 |
+|---|---|
+| 기본 도형(Box/Sphere) 충돌 | PhysX 안정성, 불필요한 메시 복잡도 제거 |
+| virtual joints 없음 | RL용 단순화, 관절 수 최소화 |
+| 바퀴 충돌: `Sphere` | 접지 안정성, 롤링 마찰 자연스러움 |
+| 주요 관절 이름 유지 | 기존 Ackermann 계산기와 호환 |

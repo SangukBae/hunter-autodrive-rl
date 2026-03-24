@@ -1,6 +1,6 @@
 # common — 공통 유틸리티
 
-모든 off-policy 알고리즘(TQC, TD7, SAC)이 공유하는 리플레이 버퍼와 로거입니다.
+모든 off-policy 알고리즘(TQC, TD7)이 공유하는 리플레이 버퍼와 로거입니다.
 
 ---
 

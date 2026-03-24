@@ -17,13 +17,13 @@
 
 종료 조건:
     - goal_dist < goal_threshold       → 목표 도달
-    - 장애물 충돌 (proximity < ROBOT_RADIUS + obs_radius)
+    - LiDAR 최소 거리 < lidar_collision_threshold → 충돌
     - episode 시간 초과
-    - map 이탈 (use_walls=False 일 때만 유효)
 
-Phase 구분:
-    Phase C  : use_walls=False, use_physical_obstacles=False (기본)
-    Phase E  : use_walls=True,  use_physical_obstacles=True
+맵:
+    16×16 m 벽으로 둘러싸인 정사각형, 매 에피소드 10개 장애물 랜덤 배치
+    로봇 스폰·목표점 위치 매 에피소드 랜덤
+    RTX LiDAR (OS1-32) 기반 포인트 클라우드 학습
 """
 
 from __future__ import annotations
@@ -84,16 +84,21 @@ class LidarNavEnvCfg(DirectRLEnvCfg):
     state_space: int = 0
 
     # ── LiDAR ───────────────────────────────────────────────────────────────────
-    lidar_range: float = 5.0             # 최대 감지 거리 [m]
+    lidar_model: str = "os1-32"          # RTX OmniLidar 모델
+    lidar_use_rtx: bool = True           # RTX OmniLidar (실물 OS1 동일 방식)
+    lidar_range: float = 120.0           # 최대 감지 거리 [m] — OS1 실물 스펙
     num_sectors: int = 80                # 360° / 80 = 4.5° per sector
 
     # ── 맵 / 장애물 ─────────────────────────────────────────────────────────────
     map_size: float = 8.0                # ±8m → 16×16 m 맵
-    num_obstacles: int = 5
+    num_obstacles: int = 10              # 매 에피소드 랜덤 배치 장애물 수
     obstacle_radius_min: float = 0.15    # [m]
     obstacle_radius_max: float = 0.5     # [m]
     obstacle_height: float = 1.2         # [m]
     min_spawn_dist: float = 1.5          # 로봇/goal에서 최소 이격 거리 [m]
+
+    # ── 충돌 감지 (LiDAR 기반) ───────────────────────────────────────────────────
+    lidar_collision_threshold: float = 0.3  # LiDAR 최소 거리 < 이 값 → 충돌 판정 [m]
 
     # ── 목표 ────────────────────────────────────────────────────────────────────
     goal_threshold: float = 0.3          # 목표 도달 판정 거리 [m]
@@ -110,47 +115,23 @@ class LidarNavEnvCfg(DirectRLEnvCfg):
     max_linear_vel: float = 1.0          # [m/s]
     max_angular_vel: float = 1.0         # [rad/s]
 
-    # ── Phase E 파라미터 (기본 비활성) ───────────────────────────────────────────
-    use_walls: bool = False              # True → 4개 물리 벽 스폰
+    # ── 맵 구성 ─────────────────────────────────────────────────────────────────
+    use_walls: bool = True               # 16×16 맵 경계 물리 벽
     wall_thickness: float = 0.4         # [m]
     wall_height: float = 1.5            # [m]
-    use_physical_obstacles: bool = False # True → 물리 장애물 실린더 스폰
+    use_physical_obstacles: bool = True  # 물리 장애물 실린더 스폰
+
+    # ── 시각화 ───────────────────────────────────────────────────────────────
+    lidar_debug_vis: bool = False        # True → 뷰포트에 ray hit 포인트 표시
 
 
 @configclass
 class LidarNavEnvCfgPlay(LidarNavEnvCfg):
-    """시각화/테스트용 환경 설정 (소규모, Phase C)."""
+    """시각화/테스트용 환경 설정 (소규모)."""
 
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
         num_envs=4,
         env_spacing=20.0,
         replicate_physics=True,
     )
-
-
-@configclass
-class LidarNavEnvCfgPhaseE(LidarNavEnvCfg):
-    """Phase E: 물리 벽 + 물리 장애물 + 완전한 16×16 맵.
-
-    장애물 반경을 단일값(0.3m)으로 고정하여 물리 메시와 일치시킵니다.
-    LiDAR는 장애물(원통 해석적) + 벽(평면 해석적)을 함께 감지합니다.
-    """
-
-    # 물리 벽 + 물리 장애물 활성화
-    use_walls: bool = True
-    use_physical_obstacles: bool = True
-
-    # 물리 메시와 일치시키기 위해 단일 반경 사용
-    obstacle_radius_min: float = 0.3
-    obstacle_radius_max: float = 0.3
-
-
-@configclass
-class LidarNavEnvCfgPhaseEPlay(LidarNavEnvCfgPhaseE):
-    """Phase E 시각화용 소규모 환경."""
-
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(
-        num_envs=4,
-        env_spacing=20.0,
-        replicate_physics=True,
-    )
+    lidar_debug_vis: bool = True

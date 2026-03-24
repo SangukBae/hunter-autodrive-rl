@@ -50,6 +50,13 @@ try:
 except ImportError:
     _PHYSX = False
 
+try:
+    import omni.isaac.IsaacSensorSchema as IsaacSensorSchema
+    _RTX_LIDAR = True
+except ImportError:
+    IsaacSensorSchema = None
+    _RTX_LIDAR = False
+
 # ── 기구 상수 (hunter_se URDF Physics.usda 정확한 값) ─────────────────────────
 FRONT_AX_X   =  0.34058   # 전륜 관절 X [m]
 FRONT_AX_Y   =  0.24619   # 전륜 조향 피벗 ±Y [m]
@@ -61,6 +68,10 @@ REAR_AX_Z    = -0.158     # 후륜 관절 Z [m]
 WHEEL_RADIUS =  0.1375    # 바퀴 반지름 [m]  (매뉴얼 직경 0.275 m / 2)
 WHEEL_WIDTH  =  0.080     # 바퀴 폭 [m]
 MAX_STEER_DEG = 22.0      # 최대 조향각 [deg]
+
+LIDAR_Z       =  0.50      # base_link 기준 LiDAR 높이 [m]
+LIDAR_RADIUS  =  0.0425    # Ouster OS1-32 근사 반지름 [m]
+LIDAR_HEIGHT  =  0.073     # Ouster OS1-32 근사 높이 [m]
 
 # 차체 외형 (매뉴얼 기준)
 CHASSIS_L    =  0.817
@@ -182,6 +193,34 @@ def _add_wheel_col(stage, parent_path):
     UsdGeom.Imageable(sph.GetPrim()).MakeInvisible()
 
 
+def _add_lidar_sensor(stage, parent_path):
+    """base_link 상단에 내장 RTX LiDAR Camera prim 추가."""
+    cam = UsdGeom.Camera.Define(stage, f"{parent_path}/Lidar")
+    prim = cam.GetPrim()
+
+    if _RTX_LIDAR:
+        IsaacSensorSchema.IsaacRtxLidarSensorAPI.Apply(prim)
+
+    xformable = UsdGeom.Xformable(prim)
+    xformable.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, LIDAR_Z))
+
+    sensor_type = prim.CreateAttribute("cameraSensorType", Sdf.ValueTypeNames.Token, False)
+    sensor_type.Set("lidar")
+    if not sensor_type.GetMetadata("allowedTokens"):
+        sensor_type.SetMetadata("allowedTokens", ["camera", "radar", "lidar"])
+    prim.CreateAttribute("sensorModelPluginName", Sdf.ValueTypeNames.String, False).Set(
+        "omni.sensors.nv.lidar.lidar_core.plugin"
+    )
+    prim.CreateAttribute("sensorModelConfig", Sdf.ValueTypeNames.String, False).Set(
+        "OS1_REV6_32ch10hz1024res"
+    )
+
+    cyl = UsdGeom.Cylinder.Define(stage, f"{parent_path}/Lidar/lidar_visual")
+    cyl.GetRadiusAttr().Set(LIDAR_RADIUS)
+    cyl.GetHeightAttr().Set(LIDAR_HEIGHT)
+    UsdGeom.Gprim(cyl).GetDisplayColorAttr().Set([Gf.Vec3f(0.08, 0.08, 0.08)])
+
+
 def _add_angular_drive(
     joint_prim,
     stiffness: float,
@@ -275,6 +314,9 @@ def build(output_path: str) -> str:
     _make_link(stage, CHASSIS, CHASSIS_MASS, world_pos=(0, 0, 0))
     _add_chassis_col(stage, CHASSIS)
     _add_vis_ref(stage, CHASSIS, "chassis_vis", "/Geometry/base_link")
+    # LiDAR 센서는 USD에 포함하지 않는다.
+    # teleop_lidar_check.py 에서 LidarRtx(config_file_name=...) 로 OmniLidar prim 을
+    # 런타임에 base_link 아래에 직접 생성한다.
 
     # 전륜 좌 너클
     _make_link(stage, FL_STEER, KNUCKLE_MASS,

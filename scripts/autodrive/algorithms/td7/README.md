@@ -48,7 +48,7 @@ TQCAgent와 동일한 인터페이스를 제공합니다.
 
 4. **Clipped Double Q-Learning (TD3 스타일)**
    - Q1, Q2 중 최솟값을 타깃으로 사용
-   - 과대추정 억제 (TQC의 분위수 기반 방법과 대비)
+   - 과대추정 억제
 
 ---
 
@@ -59,3 +59,7 @@ TQCTrainer와 동일한 학습 루프 구조를 가집니다. TD7Agent의 Checkp
 ### 로그 저장 경로
 
 `logs/td7/{experiment_name}/{timestamp}/`
+- `model_{step}.pt`: 중간 체크포인트
+- `model_final.pt`: 최종 체크포인트
+- `tensorboard/`: TensorBoard 로그
+- `metrics.json`: 평가 지표 JSON

@@ -1,6 +1,6 @@
 # algorithms — RL 알고리즘 구현체
 
-TQC, TD7, SAC off-policy 알고리즘과 공통 유틸리티를 포함합니다. 모든 알고리즘은 Isaac Lab 환경과 `LAP` 리플레이 버퍼를 공통으로 사용합니다.
+TQC, TD7 off-policy 알고리즘과 공통 유틸리티를 포함합니다. 모든 알고리즘은 Isaac Lab 환경과 `LAP` 리플레이 버퍼를 공통으로 사용합니다.
 
 ---
 
@@ -15,27 +15,23 @@ algorithms/
 ├── td7/
 │   ├── td7_agent.py        # TD7 에이전트 (네트워크 포함)
 │   └── td7_trainer.py      # TD7 학습 루프
-├── sac/
-│   └── sac_agent.py        # SAC 에이전트
-├── common/
-│   ├── buffer.py           # LAP 우선순위 경험 리플레이
-│   └── logger.py           # TensorBoard + JSON 로거
-└── deploy/
-    └── export_policy.py    # [예정] ONNX/TorchScript 내보내기
+└── common/
+    ├── buffer.py           # LAP 우선순위 경험 리플레이
+    └── logger.py           # TensorBoard + JSON 로거
 ```
 
 ---
 
 ## tqc/ — Truncated Quantile Critics
 
-**논문:** "Controlling Overestimation Bias with Truncated Mixture of Continuous Distributional Quantile Critics" (Kuznetsov et al., 2020)
+**논문:** "Controlling Overestimation Bias with Truncated Mixture of Continuous Distributional Quantile Critics" (Kuznetsov et al., ICML 2020)
 
 ### `networks.py`
 
 | 클래스 | 역할 |
 |---|---|
 | `Actor` | Gaussian 정책 네트워크. 상태 → (mean, log_std) → tanh 샘플링. ReLU 활성화, 2-layer MLP. |
-| `QuantileCritic` | N개의 Critic을 앙상블. 각 Critic이 Q 분포를 M개의 분위수로 출력. ELU 활성화. |
+| `QuantileCritic` | N개의 Critic 앙상블. 각 Critic이 Q 분포를 M개의 분위수로 출력. ELU 활성화. |
 
 ### `tqc_agent.py` — `TQCAgent`
 
@@ -49,7 +45,7 @@ algorithms/
 **핵심 특징:**
 - 상위 분위수 제거(`top_quantiles_to_drop_per_net × n_critics`)로 Q 과대추정 억제
 - 자동 엔트로피 조정 (`ent_coef="auto_1.0"`)
-- LAP 우선순위 버퍼 연동 (`replay_buffer.prioritized=True` 시 TD 오차로 우선순위 갱신)
+- LAP 우선순위 버퍼 연동
 
 ### `tqc_trainer.py` — `TQCTrainer`
 
@@ -65,7 +61,7 @@ algorithms/
 
 ## td7/ — TD7
 
-**논문:** "TD7: Re-Establishing Baselines for Offline RL" (Fujimoto & Gu, 2023)
+**논문:** "TD7: Re-Establishing Baselines for Offline RL" (Fujimoto & Gu, NeurIPS 2023)
 
 ### `td7_agent.py` — 네트워크 + `TD7Agent`
 
@@ -77,22 +73,14 @@ algorithms/
 | `TD7Agent` | 위 네트워크 통합 + 학습 로직 |
 
 **핵심 특징:**
-- **SALE**: 상태를 잠재 공간으로 인코딩해 Q 함수의 표현력 향상
-- **Checkpointing**: 일정 주기마다 성능 회귀 시 이전 체크포인트로 복원
-- **LAP PER**: 잠재 행동 기반 우선순위 샘플링
-- TD3 스타일 Clipped Double Q-Learning
+- **SALE**: Encoder가 상태를 잠재 임베딩으로 변환, Critic 표현력 향상
+- **Checkpointing**: 성능 회귀 감지 시 이전 체크포인트로 파라미터 복원
+- **LAP PER**: 잠재 공간 행동 거리 기반 우선순위 샘플링
+- **Clipped Double Q-Learning**: Q1, Q2 최솟값을 타깃으로 사용
 
 ### `td7_trainer.py` — `TD7Trainer`
 
-TQCTrainer와 동일한 인터페이스. TD7Agent와 연동.
-
----
-
-## sac/ — Soft Actor-Critic
-
-### `sac_agent.py` — `SACAgent`
-
-엔트로피 정규화 기반 off-policy 알고리즘. TQC의 단순화 버전으로 볼 수 있습니다. (n_critics=2, 분위수 없음)
+TQCTrainer와 동일한 인터페이스. TD7Agent의 Checkpointing 기능 활성화 로직 포함.
 
 ---
 
@@ -116,8 +104,6 @@ TQCTrainer와 동일한 인터페이스. TD7Agent와 연동.
 | `batch_size` | 256 | 샘플 배치 크기 |
 | `prioritized` | `False` | 우선순위 샘플링 활성화 |
 
-내부적으로 numpy 배열로 전환을 저장하고, `sample()` 시 PyTorch 텐서로 변환합니다.
-
 ### `logger.py` — `Logger`
 
 TensorBoard와 JSON 파일에 동시에 메트릭을 기록합니다.
@@ -130,19 +116,3 @@ TensorBoard와 JSON 파일에 동시에 메트릭을 기록합니다.
 | `close()` | TensorBoard writer 종료 |
 
 로그는 `logs/{algo}/{experiment_name}/{timestamp}/` 하위에 저장됩니다.
-
----
-
-## deploy/ — 정책 내보내기 (예정)
-
-### `export_policy.py`
-
-학습된 TQC/TD7 정책을 ONNX 또는 TorchScript 형식으로 내보냅니다. (Phase 4 구현 예정)
-
-예상 사용법:
-```bash
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/deploy/export_policy.py \
-    --algo tqc \
-    --checkpoint logs/tqc/.../model_final.pt \
-    --output policy.onnx
-```
