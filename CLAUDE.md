@@ -4,135 +4,83 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Hunter SE V0 로봇을 위한 LiDAR 기반 자율주행 RL 학습 프레임워크. NVIDIA Isaac Lab 위에서 TQC/TD7 오프-폴리시 알고리즘으로 목표 도달 + 장애물 회피 정책을 학습한다.
+Hunter SE V0 로봇을 위한 LiDAR 섹터 기반 자율주행 RL 학습 프레임워크.
+NVIDIA Isaac Lab 위에서 오프-폴리시 알고리즘으로 목표 도달 + 장애물 회피 정책을 학습한다.
 
 - **로봇**: Hunter SE V0 (`hunter_se_v0/`)
-- **맵**: 16×16m 물리 벽 경계, 매 에피소드 10개 장애물 랜덤 배치
-- **LiDAR**: RTX OmniLidar (OS1-32, 물리 기반 광자 추적 — 실물 동일 방식)
-- **충돌 판정**: LiDAR 최소 감지 거리 기반
+- **LiDAR 입력**: 포인트클라우드를 N개 섹터로 분할 → 섹터별 최솟값 벡터를 RL 입력으로 직접 사용
+- **시뮬레이터**: NVIDIA Isaac Lab (Isaac Sim 5.0 기반)
 
 ## Commands
 
 모든 스크립트는 Isaac Lab 런처를 통해 실행한다:
 
 ```bash
-# 패키지 설치 (최초 1회)
-/workspace/isaaclab/isaaclab.sh -p -m pip install -e source/isaaclab_autodrive
-/workspace/isaaclab/isaaclab.sh -p -m pip install -e source/isaaclab_autodrive_tasks
+# 환경 패키지 설치 (최초 1회 또는 코드 수정 후)
+/workspace/isaaclab/isaaclab.sh -p -m pip install -e source/env
 
-# TQC 학습
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-    --task Isaac-LidarNav-Hunter-v0 --algo tqc --num_envs 4 --headless
-
-# TD7 학습
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/train_tqc.py \
-    --task Isaac-LidarNav-Hunter-v0 --algo td7 --num_envs 4 --headless
-
-# 정책 시각화
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/play_lidar_nav.py \
-    --task Isaac-LidarNav-Hunter-Play-v0 --algo tqc \
-    --checkpoint logs/tqc/hunter_tqc/TIMESTAMP/model_final.pt --num_envs 4
-
-# 환경 단위 테스트
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/test_lidar_nav.py
-
-# LiDAR 텔레오프 체크
-/workspace/isaaclab/isaaclab.sh -p scripts/autodrive/teleop_lidar_check.py
+# USD 파일 재생성 (로봇 구조 변경 시)
+/workspace/isaaclab/isaaclab.sh -p hunter_se_v0/build_usd.py
 ```
 
-> RTX LiDAR는 환경당 독립 render product를 생성하므로 num_envs 4~8 권장.
-
-## Architecture
-
-### Package Structure
+## Repository Structure
 
 ```
-hunter_se_v0/                        # 로봇 에셋 (USD + ArticulationCfg + Ackermann)
-source/
-├── isaaclab_autodrive/              # 로봇 에셋 래퍼
-│   └── assets/robots/hunter.py     # HUNTER_SE_V0_CFG 재익스포트
-└── isaaclab_autodrive_tasks/        # Gymnasium 환경 + 등록
-    └── direct/lidar_nav/
-        ├── __init__.py              # 2개 환경 gym.register()
-        ├── lidar_nav_env_cfg.py     # 환경 설정 dataclass
-        └── lidar_nav_env.py         # LidarNavEnv 구현
-
-scripts/autodrive/
-├── train_tqc.py                     # 학습 진입점 (TQC/TD7 공용)
-├── play_lidar_nav.py                # 정책 평가
-├── test_lidar_nav.py                # 환경 단위 테스트
-├── teleop_lidar_check.py            # LiDAR 동작 확인
-└── algorithms/
-    ├── tqc/                         # TQC 구현 (networks, agent, trainer)
-    ├── td7/                         # TD7 구현 (SALE + LAP PER + ckpt)
-    └── common/                      # LAP 버퍼, TensorBoard 로거
+hunter_se_v0/          # 로봇 에셋 패키지 (변경 빈도 낮음)
+envs/lidar_nav/        # Isaac Lab DirectRLEnv 구현 (환경 핵심)
+rl/
+  agents/              # SAC, TQC 등 에이전트
+  networks/            # Actor, Critic 네트워크
+  buffers/             # Replay buffer
+configs/
+  env/                 # 환경 YAML 하이퍼파라미터
+  rl/                  # 알고리즘 YAML 하이퍼파라미터
+scripts/               # train.py, play.py 등 진입점 (로직 없음)
+logs/                  # 학습 결과 (gitignored)
 ```
 
-### 등록된 Gymnasium 환경
+## hunter_se_v0 패키지
 
-| 환경 ID | 용도 |
-|---|---|
-| `Isaac-LidarNav-Hunter-v0` | 학습용 (64 envs, RTX LiDAR) |
-| `Isaac-LidarNav-Hunter-Play-v0` | 시각화 (4 envs) |
+로봇 에셋 패키지. Isaac Sim Python 환경에서만 import 가능하다.
 
-### LidarNavEnv 핵심 흐름
+- **`hunter_se_v0_cfg.py`** — `HUNTER_SE_V0_CFG` (`ArticulationCfg`). 환경에서 `import`해서 사용.
+  - USD 파일이 없으면 `build_usd.py`를 자동 호출해 생성한다.
+- **`ackermann.py`** — `HunterSEAckermann` 클래스. RL action(선속도, 조향각) → 관절 목표값 변환.
+  - `compute(lin_vel, delta_c)`: 배치 텐서 입력 (N,) → (steer_l, steer_r, omega_l, omega_r)
+- **`lidar_cfg.py`** — Ouster OS1 LiDAR 모델 사양 테이블 (`get_lidar_spec(model)`).
+- **`build_usd.py`** — pxr Python API로 USD articulation을 동적 생성. STL 메시는 `/robot_isaac/ugv_gazebo_sim/` 경로 참조.
 
-`DirectRLEnv`를 상속. 주요 메서드:
-
-- `_setup_scene()`: 로봇, 평지, 조명, 물리 벽(4개), 물리 장애물 스폰
-- `_pre_physics_step(actions)`: action → Ackermann 변환 → 조향 rate limiting → 관절 목표값 설정
-- `_apply_action()`: `decimation` 횟수(4회)마다 물리 스텝에 관절 명령 전달
-- `_compute_lidar()`: RTX OmniLidar 부분 스캔 → 롤링-min 버퍼 → 80-sector 정규화 맵
-- `_get_observations()`: LiDAR obs 계산 + `_last_lidar_obs` 캐시 갱신
-- `_get_collision_mask()`: `_last_lidar_obs.min() * lidar_range < lidar_collision_threshold`
-- `_reset_idx(env_ids)`: 로봇/목표/장애물 랜덤 배치, RTX 버퍼 초기화
-
-### RTX LiDAR 스캔 누적
-
-OS1-32 @ 10Hz → 1회전 = 20 physics step ≈ 5 RL step.
-각 step에서 수신된 부분 스캔(~72°)을 `_rtx_sector_buf`에 min으로 누적.
-버퍼는 에피소드 리셋(`_reset_idx`) 시에만 `lidar_range`로 초기화됨.
-
-### Action Space
+### 물리 상수 (Hunter SE V0)
 
 ```
-act[0]: [-1, 1] → linear_vel [0, max_linear_vel m/s]  (전진 전용, 후진 없음)
-act[1]: [-1, 1] → 차체 중심 조향각 delta [-0.384, +0.384 rad]
+WHEELBASE    = 0.548 m
+FRONT_TRACK  = 0.492 m
+REAR_TRACK   = 0.504 m
+WHEEL_RADIUS = 0.1375 m
+MAX_STEER    = 0.384 rad (±22°)
+MAX_SPEED    = 1.333 m/s (4.8 km/h)
+spawn_z      = 0.2955 m  (바퀴 접지 높이)
 ```
 
-조향각 → Ackermann 요레이트: `ang_vel = lin_vel × tan(delta) / WHEELBASE`
-조향 변화율 제한: `±0.5 rad/s` (`_prev_delta`로 추적)
+### 액추에이터 설계
 
-### 로봇 물리 상수 (Hunter SE V0)
+- 후륜 구동: `DCMotorCfg` — velocity mode, damping=15
+- 전륜 조향: `ImplicitActuatorCfg` — position mode, stiffness=500, damping=50
+- 전륜 자유회전: `ImplicitActuatorCfg` — stiffness=0, damping=0.01
 
-```python
-_WHEELBASE    = 0.548 m
-_REAR_TRACK   = 0.504 m
-_WHEEL_RADIUS = 0.1375 m
-_MAX_STEER    = 0.384 rad  # ±22°
-spawn_z       = 0.2955 m   # 바퀴 접지 높이 (init_state.pos[2])
+### USD 계층 구조
+
+플랫 계층 (모든 링크가 루트의 직접 자식) — PhysX RigidBody 중첩 방지:
 ```
-
-액추에이터: 후륜 `DCMotorCfg damping=15` (velocity mode), 조향 `stiffness=1e7, damping=1e5` (position mode)
-
-### IsaacLab 환경 복제 주의사항
-
-`clone_environments(copy_from_source=False)`를 사용하면 env_1+ 가 env_0의 **라이브 미러**가 된다. env_0에 prim을 스폰하면 모든 env에 자동 반영되므로, 복제 이후 스폰 시 env_0에만 **로컬 좌표**로 스폰해야 한다 (루프 금지).
-
-### 학습 루프 (TQCTrainer / TD7Trainer)
-
+/HunterSEV0  (ArticulationRootAPI)
+  /base_link, /fr_steer_left_link, /fr_left_link,
+  /fr_steer_right_link, /fr_right_link, /re_left_link, /re_right_link
+  /Physics/  (관절 Scope)
 ```
-warmup_steps 동안: 랜덤 액션
-이후:
-  1. agent.select_action(obs) → action
-  2. env.step(action) → (obs', reward, done)
-  3. buffer.add() (num_envs개 전환 동시 저장)
-  4. agent.train(batch) (updates_per_step회)
-  5. eval_interval마다: 결정론적 정책으로 평가 + 체크포인트 저장
-```
+조향 관절: `axis=Z` / 바퀴 관절: `axis=Y` (양수 속도 = 전진)
 
-로그 출력: `logs/{algo}/{experiment_name}/{timestamp}/`
+## Isaac Lab 환경 개발 시 주의사항
 
-### YAML 하이퍼파라미터
-
-각 태스크 디렉터리의 `agents/{algo}_cfg.yaml`에 위치. `--cfg` 옵션으로 경로 오버라이드 가능. `--num_envs`, `--seed`는 CLI에서 직접 오버라이드.
+- `clone_environments(copy_from_source=False)` 사용 시 env_1+ 가 env_0의 라이브 미러가 됨. 복제 이후 prim 스폰은 env_0 로컬 좌표 기준으로만 수행 (루프 금지).
+- RTX LiDAR는 환경당 독립 render product가 필요하므로 num_envs 4~8 권장.
+- Isaac Sim 5.0 기준 지원 RTX LiDAR config: `OS1_REV6_32ch10hz2048res`, `OS1_REV6_128ch10hz2048res` (OS1-64 미지원 → OS1-128 대체).

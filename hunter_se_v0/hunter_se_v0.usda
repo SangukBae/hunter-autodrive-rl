@@ -25,19 +25,11 @@ def Xform "HunterSEV0" (
             uniform token[] xformOpOrder = ["xformOp:scale"]
         }
 
-        def Xform "chassis_vis"
+        def Xform "visual" (
+            prepend references = @/workspace/hunter_autodrive/hunter_se_v0/hunter_se_v0_meshes.usdc@</Meshes/base_link>
+        )
         {
-            def "mesh" (
-                prepend references = @../hunter_se/Payload/GeometryLibrary.usdc@</Geometry/base_link>
-            )
-            {
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
         }
-
     }
 
     def Xform "fr_steer_left_link" (
@@ -54,6 +46,12 @@ def Xform "HunterSEV0" (
         {
             double size = 0.04
             token visibility = "invisible"
+        }
+
+        def Xform "visual" (
+            prepend references = @/workspace/hunter_autodrive/hunter_se_v0/hunter_se_v0_meshes.usdc@</Meshes/fr_steer_left_link>
+        )
+        {
         }
     }
 
@@ -73,20 +71,10 @@ def Xform "HunterSEV0" (
             token visibility = "invisible"
         }
 
-        def Xform "wheel_vis"
+        def Xform "visual" (
+            prepend references = @/workspace/hunter_autodrive/hunter_se_v0/hunter_se_v0_meshes.usdc@</Meshes/fr_left_link>
+        )
         {
-            quatf xformOp:orient = (-0.70710546, -0.7071081, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:orient"]
-
-            def "mesh" (
-                prepend references = @../hunter_se/Payload/GeometryLibrary.usdc@</Geometry/fr_right_link>
-            )
-            {
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
         }
     }
 
@@ -104,6 +92,12 @@ def Xform "HunterSEV0" (
         {
             double size = 0.04
             token visibility = "invisible"
+        }
+
+        def Xform "visual" (
+            prepend references = @/workspace/hunter_autodrive/hunter_se_v0/hunter_se_v0_meshes.usdc@</Meshes/fr_steer_right_link>
+        )
+        {
         }
     }
 
@@ -123,20 +117,10 @@ def Xform "HunterSEV0" (
             token visibility = "invisible"
         }
 
-        def Xform "wheel_vis"
+        def Xform "visual" (
+            prepend references = @/workspace/hunter_autodrive/hunter_se_v0/hunter_se_v0_meshes.usdc@</Meshes/fr_right_link>
+        )
         {
-            quatf xformOp:orient = (-0.70710546, 0.7071081, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:orient"]
-
-            def "mesh" (
-                prepend references = @../hunter_se/Payload/GeometryLibrary.usdc@</Geometry/fr_right_link>
-            )
-            {
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
         }
     }
 
@@ -156,20 +140,10 @@ def Xform "HunterSEV0" (
             token visibility = "invisible"
         }
 
-        def Xform "wheel_vis"
+        def Xform "visual" (
+            prepend references = @/workspace/hunter_autodrive/hunter_se_v0/hunter_se_v0_meshes.usdc@</Meshes/re_left_link>
+        )
         {
-            quatf xformOp:orient = (0.70710546, 0.7071081, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:orient"]
-
-            def "mesh" (
-                prepend references = @../hunter_se/Payload/GeometryLibrary.usdc@</Geometry/re_left_link>
-            )
-            {
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
         }
     }
 
@@ -189,20 +163,10 @@ def Xform "HunterSEV0" (
             token visibility = "invisible"
         }
 
-        def Xform "wheel_vis"
+        def Xform "visual" (
+            prepend references = @/workspace/hunter_autodrive/hunter_se_v0/hunter_se_v0_meshes.usdc@</Meshes/re_right_link>
+        )
         {
-            quatf xformOp:orient = (-0.70710546, 0.7071081, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:orient"]
-
-            def "mesh" (
-                prepend references = @../hunter_se/Payload/GeometryLibrary.usdc@</Geometry/re_right_link>
-            )
-            {
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
         }
     }
 
@@ -252,7 +216,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.01
+            float drive:angular:physics:damping = 0.5
             float drive:angular:physics:maxForce = 1000000
             float drive:angular:physics:stiffness = 0
             float drive:angular:physics:targetVelocity = 0
@@ -270,7 +234,7 @@ def Xform "HunterSEV0" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.01
+            float drive:angular:physics:damping = 0.5
             float drive:angular:physics:maxForce = 1000000
             float drive:angular:physics:stiffness = 0
             float drive:angular:physics:targetVelocity = 0
@@ -321,5 +285,4 @@ def Xform "HunterSEV0" (
         }
     }
 }
-
 

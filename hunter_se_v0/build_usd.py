@@ -13,9 +13,11 @@ pxr Python API로 생성합니다.
     /workspace/isaaclab/isaaclab.sh -p hunter_se_v0/build_usd.py
 
 물리 파라미터 출처:
-    hunter_se/Payload/Physics.usda   — 관절 위치·방향
-    hunter_se/Payload/Geometry.usda  — 링크 위치·방향
-    hunter_se/Payload/Physics.usda   — 질량 분배
+    hunter_se URDF / Physics.usda   — 관절 위치·방향, 질량 분배
+
+시각 형상 출처:
+    /robot_isaac/ugv_gazebo_sim/hunter_se/hunter_se_description/meshes/*.STL
+    → 별도 hunter_se_v0_meshes.usdc (binary) 로 빌드 후 참조
 
 계층구조 설계 (플랫 방식):
     PhysX는 RigidBody 아래에 또 다른 RigidBody가 중첩될 경우
@@ -41,8 +43,9 @@ pxr Python API로 생성합니다.
 """
 
 import os
+import struct
 
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, Vt
 
 try:
     from pxr import PhysxSchema
@@ -85,20 +88,17 @@ CHASSIS_MASS = 23.106
 KNUCKLE_MASS =  3.149
 WHEEL_MASS   =  3.149
 
-# hunter_se 원본 GeometryLibrary 참조 경로 (v0 USD 위치 기준 상대 경로)
-GEOM_LIB = "../hunter_se/Payload/GeometryLibrary.usdc"
+# STL 메시 경로 (Gazebo 패키지 기준)
+_MESH_DIR = "/robot_isaac/ugv_gazebo_sim/hunter_se/hunter_se_description/meshes"
 
-# 바퀴 시각화 오리엔트 (w, x, y, z) — Geometry.usda resetXformStack 값 기반
-# 계산: 각 링크 Xform orient × 내부 Mesh orient (쿼터니언 곱)
-# fr_left_link : (0.7071, 0.7071, 0, 0) × (0, 1, 0, 0) × (0, 1, 0, 0)[X flip]
-#              = (-0.7071, 0.7071, 0, 0) × (0, 1, 0, 0) = (-0.7071, -0.7071, 0, 0)
-# fr_right_link: (-0.7071, 0.7071, 0, 0) × (1, 0, 0, 0) = (-0.7071, 0.7071, 0, 0)
-# re_left_link : (0.7071, 0.7071, 0, 0) × (1, 0, 0, 0) = ( 0.7071, 0.7071, 0, 0)
-# re_right_link: (-0.7071, 0.7071, 0, 0) × (1, 0, 0, 0) = (-0.7071, 0.7071, 0, 0)
-_Q_FL = (-0.70710546, -0.7071081,  0.0, 0.0)   # 180° X flip 추가 적용
-_Q_FR = (-0.70710546,  0.7071081,  0.0, 0.0)
-_Q_RL = ( 0.70710546,  0.7071081,  0.0, 0.0)
-_Q_RR = (-0.70710546,  0.7071081,  0.0, 0.0)
+# 시각화 색상 (Hunter SE 도장색 근사)
+_COLOR_BODY  = Gf.Vec3f(0.18, 0.22, 0.14)   # 올리브 그린 (차체)
+_COLOR_WHEEL = Gf.Vec3f(0.10, 0.10, 0.10)   # 다크 그레이 (바퀴/너클)
+
+# 바퀴 링크의 URDF joint rpy → USD 시각 메시 보정 쿼터니언 (w, x, y, z)
+# URDF 조인트가 Rx(±90°)로 바퀴를 회전시키므로, 시각 메시에 동일 회전 적용
+_Q_RX_POS = Gf.Quatf(0.7071068, 0.7071068, 0.0, 0.0)   # Rx(+90°)
+_Q_RX_NEG = Gf.Quatf(0.7071068, -0.7071068, 0.0, 0.0)  # Rx(-90°)
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────
@@ -136,33 +136,8 @@ def _make_link(stage, path, mass, world_pos):
     return xform.GetPrim()
 
 
-def _add_vis_ref(stage, parent_path, name, lib_prim_path, orient_wxyz=None):
-    """hunter_se GeometryLibrary 메시 참조를 시각화 전용으로 추가.
-
-    물리·충돌 형상과 무관한 순수 시각화 레이어.
-    orient_wxyz: (w, x, y, z) — 원본 Geometry.usda의 resetXformStack 절대 오리엔트.
-    """
-    xf = UsdGeom.Xform.Define(stage, f"{parent_path}/{name}")
-    if orient_wxyz is not None:
-        UsdGeom.Xformable(xf.GetPrim()).AddOrientOp(
-            UsdGeom.XformOp.PrecisionFloat
-        ).Set(Gf.Quatf(*orient_wxyz))
-    mesh = stage.DefinePrim(f"{parent_path}/{name}/mesh")
-    mesh.GetReferences().AddReference(
-        assetPath=GEOM_LIB,
-        primPath=Sdf.Path(lib_prim_path),
-    )
-    # 원본 Geometry.usda 패턴: 라이브러리 메시의 xformOp를 정적 identity로 덮어쓴다.
-    # GeometryLibrary.usdc 내부에 시간 기반 또는 비-identity xformOp가 있을 수 있으며,
-    # 이를 덮어쓰지 않으면 re_left_link 등이 정지 상태에서도 회전하는 증상이 발생한다.
-    xformable = UsdGeom.Xformable(mesh)
-    xformable.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 0.0))
-    xformable.AddOrientOp(UsdGeom.XformOp.PrecisionFloat).Set(Gf.Quatf(1.0, 0.0, 0.0, 0.0))
-    xformable.AddScaleOp().Set(Gf.Vec3f(1.0, 1.0, 1.0))
-
-
 def _add_chassis_col(stage, parent_path):
-    """차체 충돌 형상 (Box, 렌더링 비활성)."""
+    """차체 충돌 형상 (Box) — 물리 전용, 비가시."""
     hL, hW, hH = CHASSIS_L / 2.0, CHASSIS_W / 2.0, CHASSIS_H / 2.0
     cube = UsdGeom.Cube.Define(stage, f"{parent_path}/chassis_col")
     cube.GetSizeAttr().Set(1.0)
@@ -174,7 +149,7 @@ def _add_chassis_col(stage, parent_path):
 
 
 def _add_knuckle_col(stage, parent_path):
-    """너클 충돌 형상 (0.04 m 큐브, 렌더링 비활성)."""
+    """너클 충돌 형상 (0.04 m 큐브) — 물리 전용, 비가시."""
     cube = UsdGeom.Cube.Define(stage, f"{parent_path}/knuckle_col")
     cube.GetSizeAttr().Set(0.04)
     _apply_collision(cube.GetPrim())
@@ -182,7 +157,7 @@ def _add_knuckle_col(stage, parent_path):
 
 
 def _add_wheel_col(stage, parent_path):
-    """바퀴 충돌 형상 (Sphere, 렌더링 비활성).
+    """바퀴 충돌 형상 (Sphere) — 물리 전용, 비가시.
 
     PhysX 네이티브 Sphere 는 edge 가 전혀 없어 접지 안정성이 가장 높다.
     Cylinder/Capsule 의 평면 모서리 edge contact 로 인한 spin 자가증폭을 방지한다.
@@ -219,6 +194,97 @@ def _add_lidar_sensor(stage, parent_path):
     cyl.GetRadiusAttr().Set(LIDAR_RADIUS)
     cyl.GetHeightAttr().Set(LIDAR_HEIGHT)
     UsdGeom.Gprim(cyl).GetDisplayColorAttr().Set([Gf.Vec3f(0.08, 0.08, 0.08)])
+
+
+def _read_stl_binary(stl_path: str):
+    """Binary STL → (Vt.Vec3fArray, face_counts, face_indices).
+
+    STL은 삼각형마다 3개의 정점을 갖는다. 중복 정점 제거 없이 그대로 사용한다.
+    """
+    with open(stl_path, "rb") as f:
+        data = f.read()
+    n_tri = struct.unpack_from("<I", data, 80)[0]
+    pts = []
+    offset = 84
+    for _ in range(n_tri):
+        offset += 12  # normal 건너뜀
+        v0 = struct.unpack_from("<3f", data, offset); offset += 12
+        v1 = struct.unpack_from("<3f", data, offset); offset += 12
+        v2 = struct.unpack_from("<3f", data, offset); offset += 12
+        offset += 2   # attribute 건너뜀
+        pts.append(Gf.Vec3f(*v0))
+        pts.append(Gf.Vec3f(*v1))
+        pts.append(Gf.Vec3f(*v2))
+    vt_pts    = Vt.Vec3fArray(pts)
+    vt_counts = Vt.IntArray([3] * n_tri)
+    vt_idxs   = Vt.IntArray(list(range(n_tri * 3)))
+    return vt_pts, vt_counts, vt_idxs
+
+
+def _build_mesh_stage(usd_dir: str) -> str:
+    """7개 링크의 STL을 읽어 hunter_se_v0_meshes.usdc(바이너리) 생성.
+
+    각 링크 메시는 /Meshes/<link_name> 에 저장된다.
+    바퀴 링크는 URDF joint rpy(±90°)에 맞춰 orient xform op을 추가한다.
+    """
+    mesh_path = os.path.join(usd_dir, "hunter_se_v0_meshes.usdc")
+    stage = Usd.Stage.CreateNew(mesh_path)
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
+    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+
+    UsdGeom.Scope.Define(stage, "/Meshes")
+
+    # (link_name, stl_file, color, orient_quat)
+    # orient: URDF joint rpy 에서 바퀴가 Rx(±90°) 로 회전되어 있으므로 보정
+    _LINKS = [
+        ("base_link",           "base_link.STL",            _COLOR_BODY,  None),
+        ("fr_steer_left_link",  "fr_steer_left_link.STL",   _COLOR_WHEEL, None),
+        ("fr_left_link",        "fr_left_link.STL",          _COLOR_WHEEL, _Q_RX_POS),
+        ("fr_steer_right_link", "fr_steer_right_link.STL",  _COLOR_WHEEL, None),
+        ("fr_right_link",       "fr_right_link.STL",         _COLOR_WHEEL, _Q_RX_NEG),
+        ("re_left_link",        "re_left_link.STL",          _COLOR_WHEEL, _Q_RX_POS),
+        ("re_right_link",       "re_right_link.STL",         _COLOR_WHEEL, _Q_RX_NEG),
+    ]
+
+    for link_name, stl_file, color, orient in _LINKS:
+        stl_path = os.path.join(_MESH_DIR, stl_file)
+        if not os.path.exists(stl_path):
+            print(f"[build_usd] STL 없음, 건너뜀: {stl_path}")
+            continue
+        print(f"[build_usd] STL 읽기: {stl_file} ...")
+        pts, counts, idxs = _read_stl_binary(stl_path)
+
+        # 링크별 루트는 Xform — 회전 보정을 여기에 적용
+        # visual 참조 시 "def Xform visual → def Xform /Meshes/<link>" 로 타입이 일치해야
+        # 메시 자식까지 렌더링됨. Xform 루트 아래에 Mesh 자식을 두는 것이 정석.
+        xf_path = f"/Meshes/{link_name}"
+        xf = UsdGeom.Xform.Define(stage, xf_path)
+        if orient is not None:
+            UsdGeom.Xformable(xf.GetPrim()).AddOrientOp().Set(orient)
+
+        mesh = UsdGeom.Mesh.Define(stage, f"{xf_path}/mesh")
+        mesh.GetPointsAttr().Set(pts)
+        mesh.GetFaceVertexCountsAttr().Set(counts)
+        mesh.GetFaceVertexIndicesAttr().Set(idxs)
+        mesh.GetSubdivisionSchemeAttr().Set("none")
+        UsdGeom.Gprim(mesh).GetDisplayColorAttr().Set([color])
+
+    stage.GetRootLayer().Save()
+    print(f"[build_usd] 메시 스테이지 저장: {mesh_path}")
+    return mesh_path
+
+
+def _add_stl_vis(stage, link_path: str, mesh_stage_path: str, link_name: str):
+    """링크 아래에 /visual Xform을 추가하고 mesh USDC 의 해당 Xform prim을 참조.
+
+    mesh USDC 구조: /Meshes/<link_name> (Xform) → /mesh (Mesh)
+    여기서 visual prim도 Xform 이므로 타입이 일치 → 메시 자식까지 렌더링됨.
+    """
+    vis_xf = UsdGeom.Xform.Define(stage, f"{link_path}/visual")
+    vis_xf.GetPrim().GetReferences().AddReference(
+        assetPath=mesh_stage_path,
+        primPath=Sdf.Path(f"/Meshes/{link_name}"),
+    )
 
 
 def _add_angular_drive(
@@ -286,6 +352,9 @@ def _make_revolute_joint(
 def build(output_path: str) -> str:
     """Hunter SE V0 USD articulation 파일 생성."""
 
+    usd_dir = os.path.dirname(os.path.abspath(output_path))
+    mesh_stage_path = _build_mesh_stage(usd_dir)
+
     stage = Usd.Stage.CreateNew(output_path)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -313,44 +382,43 @@ def build(output_path: str) -> str:
     # 차체
     _make_link(stage, CHASSIS, CHASSIS_MASS, world_pos=(0, 0, 0))
     _add_chassis_col(stage, CHASSIS)
-    _add_vis_ref(stage, CHASSIS, "chassis_vis", "/Geometry/base_link")
-    # LiDAR 센서는 USD에 포함하지 않는다.
-    # teleop_lidar_check.py 에서 LidarRtx(config_file_name=...) 로 OmniLidar prim 을
-    # 런타임에 base_link 아래에 직접 생성한다.
+    _add_stl_vis(stage, CHASSIS, mesh_stage_path, "base_link")
 
     # 전륜 좌 너클
     _make_link(stage, FL_STEER, KNUCKLE_MASS,
                world_pos=(FRONT_AX_X, FRONT_AX_Y, FRONT_AX_Z))
     _add_knuckle_col(stage, FL_STEER)
+    _add_stl_vis(stage, FL_STEER, mesh_stage_path, "fr_steer_left_link")
 
     # 전륜 좌 바퀴 (너클과 동일 위치 = 조향 피벗 = 바퀴 중심)
     _make_link(stage, FL_WHEEL, WHEEL_MASS,
                world_pos=(FRONT_AX_X, FRONT_AX_Y, FRONT_AX_Z))
     _add_wheel_col(stage, FL_WHEEL)
-    _add_vis_ref(stage, FL_WHEEL, "wheel_vis", "/Geometry/fr_right_link", orient_wxyz=_Q_FL)
+    _add_stl_vis(stage, FL_WHEEL, mesh_stage_path, "fr_left_link")
 
     # 전륜 우 너클
     _make_link(stage, FR_STEER, KNUCKLE_MASS,
                world_pos=(FRONT_AX_X, -FRONT_AX_Y, FRONT_AX_Z))
     _add_knuckle_col(stage, FR_STEER)
+    _add_stl_vis(stage, FR_STEER, mesh_stage_path, "fr_steer_right_link")
 
     # 전륜 우 바퀴
     _make_link(stage, FR_WHEEL, WHEEL_MASS,
                world_pos=(FRONT_AX_X, -FRONT_AX_Y, FRONT_AX_Z))
     _add_wheel_col(stage, FR_WHEEL)
-    _add_vis_ref(stage, FR_WHEEL, "wheel_vis", "/Geometry/fr_right_link", orient_wxyz=_Q_FR)
+    _add_stl_vis(stage, FR_WHEEL, mesh_stage_path, "fr_right_link")
 
     # 후륜 좌 바퀴
     _make_link(stage, RL_WHEEL, WHEEL_MASS,
                world_pos=(REAR_AX_X, REAR_AX_Y, REAR_AX_Z))
     _add_wheel_col(stage, RL_WHEEL)
-    _add_vis_ref(stage, RL_WHEEL, "wheel_vis", "/Geometry/re_left_link", orient_wxyz=_Q_RL)
+    _add_stl_vis(stage, RL_WHEEL, mesh_stage_path, "re_left_link")
 
     # 후륜 우 바퀴
     _make_link(stage, RR_WHEEL, WHEEL_MASS,
                world_pos=(REAR_AX_X, -REAR_AX_Y, REAR_AX_Z))
     _add_wheel_col(stage, RR_WHEEL)
-    _add_vis_ref(stage, RR_WHEEL, "wheel_vis", "/Geometry/re_right_link", orient_wxyz=_Q_RR)
+    _add_stl_vis(stage, RR_WHEEL, mesh_stage_path, "re_right_link")
 
     # ── 조인트 ────────────────────────────────────────────────────────────────
     PHYS = f"{ROOT}/Physics"

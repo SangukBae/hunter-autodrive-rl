@@ -1,21 +1,22 @@
 # hunter_se_v0 — RL용 procedural Hunter SE 자산
 
-`hunter_se_v0`는 이 저장소에서 RL 학습과 제어 검증에 사용하는 Hunter SE V0 자산입니다. 원본 변환 자산인 `hunter_se/`와 달리, `pxr` Python API로 USD articulation을 절차적으로 만들고, 원본 Hunter SE의 검증된 관절 위치/질량 분배를 그대로 가져옵니다.
+`hunter_se_v0`는 이 저장소에서 RL 학습과 제어 검증에 사용하는 Hunter SE V0 자산입니다. `pxr` Python API로 USD articulation을 절차적으로 만들고, Hunter SE의 검증된 관절 위치/질량 분배를 그대로 가져옵니다.
 
 핵심 목적은 다음 두 가지입니다.
 
 - RL 환경에서 안정적으로 쓸 수 있는 단순한 물리 구조 제공
-- 원본 `hunter_se/`와 호환되는 조향/구동 관절 이름 유지
+- 조향/구동 관절 이름 유지 (Ackermann 계산기와 호환)
 
-또한 시각 메시는 `hunter_se/Payload/GeometryLibrary.usdc`를 그대로 참조하므로, 충돌 형상은 단순화하면서 외형은 기존 모델을 재사용합니다.
+시각 형상은 `/robot_isaac/ugv_gazebo_sim/hunter_se/hunter_se_description/meshes/` 의 STL 파일에서 빌드된 `hunter_se_v0_meshes.usdc`(binary)를 참조합니다. 충돌 형상(Box/Sphere)은 물리 전용으로 비가시 처리됩니다.
 
 ## 1. 파일 구성
 
 | 파일 | 역할 | 비고 |
 |---|---|---|
 | `__init__.py` | 패키지 설명 | 현재는 설명용 모듈이며 별도 export는 없음 |
-| `build_usd.py` | USD 생성기 | `pxr` API로 `hunter_se_v0.usda` 생성 |
+| `build_usd.py` | USD 생성기 | `pxr` API로 `hunter_se_v0.usda` + `hunter_se_v0_meshes.usdc` 생성 |
 | `hunter_se_v0.usda` | 체크인된 생성 결과물 | Isaac Lab이 실제로 읽는 USD 자산 |
+| `hunter_se_v0_meshes.usdc` | 시각 메시 바이너리 | STL에서 변환된 링크별 메시 (binary USDC) |
 | `hunter_se_v0_cfg.py` | `ArticulationCfg` | USD 경로, 스폰 위치, actuator 튜닝 정의 |
 | `ackermann.py` | Ackermann 변환기 | 중심 조향각/선속도를 좌우 조향각과 후륜 각속도로 변환 |
 
@@ -76,12 +77,12 @@
 
 현재 구현은 "기본 도형 기반"이지만, 정확히는 다음 조합입니다.
 
-- 차체 충돌: `Cube`
-- 너클 충돌: `Cube`
-- 바퀴 충돌: `Sphere`
-- 시각 형상: `hunter_se/Payload/GeometryLibrary.usdc` 참조 메시
+- 차체 충돌: `Cube` (비가시, 물리 전용)
+- 너클 충돌: `Cube` (비가시, 물리 전용)
+- 바퀴 충돌: `Sphere` (비가시, 물리 전용) — 접지 안정성을 위해 Sphere 선택
+- 시각 형상: `hunter_se_v0_meshes.usdc` 의 STL 메시 (각 링크 `/visual` prim으로 참조)
 
-즉, 일부 오래된 주석이나 문구에 있는 "Box/Cylinder" 표현과 달리, 현재 코드의 바퀴 충돌 형상은 `Cylinder`가 아니라 `Sphere`입니다. 접지 안정성을 위해 Sphere가 선택되어 있습니다.
+STL 메시 출처: `/robot_isaac/ugv_gazebo_sim/hunter_se/hunter_se_description/meshes/`
 
 ## 5. 제어 구조와 actuator 설정
 
